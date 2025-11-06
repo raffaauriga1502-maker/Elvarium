@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elvarium Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'primary': '#0F172A', // slate-900
+              'secondary': '#1E293B', // slate-800
+              'accent': '#38BDF8', // sky-400
+              'light': '#F1F5F9', // slate-100
+              'text-primary': '#E2E8F0', // slate-200
+              'text-secondary': '#94A3B8', // slate-400
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      @keyframes shimmer {
+        0% { background-position: 0% 0%; }
+        100% { background-position: 100% 100%; }
+      }
+      @keyframes subtle-shimmer {
+        0% { background-position: 100% 100%; }
+        100% { background-position: 0% 0%; }
+      }
+
+      body {
+        background-color: #0F172A; /* primary */
+        /* A more complex, faceted background to feel less hollow */
+        background-image: 
+          linear-gradient(335deg, rgba(56, 189, 248, 0.08), transparent 30%),
+          linear-gradient(155deg, rgba(56, 189, 248, 0.08), transparent 30%),
+          linear-gradient(25deg, rgba(56, 189, 248, 0.08), transparent 30%),
+          linear-gradient(205deg, rgba(56, 189, 248, 0.08), transparent 30%),
+          radial-gradient(circle at center, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
+        background-size: 40em 40em;
+        background-attachment: fixed;
+        animation: shimmer 40s linear infinite alternate;
+      }
+      .bg-crystalline {
+        background-color: #1E293B; /* secondary slate-800 */
+        background-image:
+          linear-gradient(160deg, rgba(56, 189, 248, 0.04) 5%, transparent 40%),
+          linear-gradient(340deg, rgba(56, 189, 248, 0.05) 10%, transparent 50%),
+          linear-gradient(45deg, rgba(15, 23, 42, 0.3) 0%, transparent 60%),
+          linear-gradient(215deg, rgba(15, 23, 42, 0.4) 0%, transparent 70%);
+        background-size: 20em 20em;
+        animation: subtle-shimmer 60s linear infinite alternate;
+      }
+      .bg-home-blue {
+        background-color: #1E40AF; /* A rich blue */
+        background-image:
+          linear-gradient(160deg, rgba(56, 189, 248, 0.1) 5%, transparent 40%),
+          linear-gradient(340deg, rgba(56, 189, 248, 0.12) 10%, transparent 50%),
+          linear-gradient(45deg, rgba(15, 23, 42, 0.2) 0%, transparent 60%),
+          radial-gradient(circle at 15% 50%, rgba(56, 189, 248, 0.15), transparent 40%);
+        background-size: 25em 25em;
+        animation: subtle-shimmer 50s linear infinite alternate;
+      }
+      .bg-characters-dark-blue {
+        background-color: #020617; /* A deep, dark blue */
+        background-image:
+          linear-gradient(160deg, rgba(56, 189, 248, 0.05) 5%, transparent 45%),
+          linear-gradient(340deg, rgba(56, 189, 248, 0.06) 10%, transparent 55%),
+          linear-gradient(215deg, rgba(15, 23, 42, 0.5) 0%, transparent 70%);
+        background-size: 30em 30em;
+        animation: subtle-shimmer 70s linear infinite alternate;
+      }
+      .bg-profile-purple {
+        background-color: #2E1065; /* A deep indigo/purple */
+        background-image:
+          linear-gradient(200deg, rgba(217, 70, 239, 0.08) 5%, transparent 40%), /* Fuchsia hint */
+          linear-gradient(340deg, rgba(250, 204, 21, 0.06) 10%, transparent 50%), /* Amber hint */
+          linear-gradient(45deg, rgba(15, 23, 42, 0.3) 0%, transparent 60%),
+          radial-gradient(circle at 80% 20%, rgba(217, 70, 239, 0.1), transparent 40%);
+        background-size: 28em 28em;
+        animation: subtle-shimmer 65s linear infinite alternate;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-primary text-text-primary">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
