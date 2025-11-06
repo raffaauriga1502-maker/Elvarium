@@ -1,102 +1,78 @@
-// FIX: Import CharacterType to resolve type errors.
 import { User, Character, CharacterType } from '../types';
 
 // Simulate network latency
-const FAKE_LATENCY_MS = 500;
+const FAKE_LATENCY_MS = 200;
 
-/**
- * A generic function to simulate an async request with latency.
- * @param operation The synchronous operation (e.g., localStorage access) to perform.
- * @returns A promise that resolves with the result of the operation.
- */
-function request<T>(operation: () => T): Promise<T> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(operation());
-    }, FAKE_LATENCY_MS);
-  });
-}
+const fakeDelay = () => new Promise(resolve => setTimeout(resolve, FAKE_LATENCY_MS));
 
-/**
- * A helper for safely getting and parsing a JSON item from localStorage.
- * @param key The localStorage key.
- * @param defaultValue The value to return if the key doesn't exist or parsing fails.
- * @returns The parsed item or the default value.
- */
-function getParsedItem<T>(key: string, defaultValue: T): T {
+// --- Generic Local Storage Helpers ---
+const getItem = async <T>(key: string): Promise<T | null> => {
+    await fakeDelay();
     try {
         const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : defaultValue;
+        return item ? JSON.parse(item) : null;
     } catch (error) {
-        console.error(`Error parsing JSON from localStorage key "${key}":`, error);
-        return defaultValue;
+        console.error(`Error getting item ${key} from localStorage`, error);
+        return null;
     }
-}
-
-// === API Methods ===
-
-// -- Users --
-export const getUsers = (): Promise<User[]> => {
-    return request(() => getParsedItem<User[]>('elvarium-users', []));
 };
 
-export const saveUsers = (users: User[]): Promise<void> => {
-    return request(() => localStorage.setItem('elvarium-users', JSON.stringify(users)));
+const setItem = async <T>(key: string, value: T): Promise<void> => {
+    await fakeDelay();
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.error(`Error setting item ${key} in localStorage`, error);
+    }
 };
 
-export const getCurrentUser = (): Promise<User | null> => {
-    return request(() => getParsedItem<User | null>('elvarium-currentUser', null));
+const removeItem = async (key: string): Promise<void> => {
+    await fakeDelay();
+    localStorage.removeItem(key);
 };
 
-export const saveCurrentUser = (user: User): Promise<void> => {
-    return request(() => localStorage.setItem('elvarium-currentUser', JSON.stringify(user)));
-};
 
-export const removeCurrentUser = (): Promise<void> => {
-    return request(() => localStorage.removeItem('elvarium-currentUser'));
-};
+// --- User Management ---
+const USERS_KEY = 'elvarium_users';
+const CURRENT_USER_KEY = 'elvarium_current_user';
 
-// -- App Settings --
-export const getLogo = (): Promise<string | null> => {
-    return request(() => localStorage.getItem('elvarium-logo'));
-};
+export const getUsers = (): Promise<User[]> => getItem<User[]>(USERS_KEY).then(users => users || []);
+export const saveUsers = (users: User[]): Promise<void> => setItem(USERS_KEY, users);
 
-export const saveLogo = (base64String: string): Promise<void> => {
-    return request(() => localStorage.setItem('elvarium-logo', base64String));
-};
+export const getCurrentUser = (): Promise<User | null> => getItem<User>(CURRENT_USER_KEY);
+export const saveCurrentUser = (user: User): Promise<void> => setItem(CURRENT_USER_KEY, user);
+export const removeCurrentUser = (): Promise<void> => removeItem(CURRENT_USER_KEY);
 
-export const getAuthBanner = (): Promise<string | null> => {
-    return request(() => localStorage.getItem('elvarium-auth-banner'));
-};
 
-export const saveAuthBanner = (base64String: string): Promise<void> => {
-    return request(() => localStorage.setItem('elvarium-auth-banner', base64String));
-};
+// --- Customization ---
+const LOGO_KEY = 'elvarium_logo';
+const AUTH_BANNER_KEY = 'elvarium_auth_banner';
 
-// -- Home View --
-export const getSynopsis = (): Promise<string | null> => {
-    return request(() => localStorage.getItem('elvarium-synopsis'));
-};
+export const getLogo = (): Promise<string | null> => getItem<string>(LOGO_KEY);
+export const saveLogo = (base64String: string): Promise<void> => setItem(LOGO_KEY, base64String);
 
-export const saveSynopsis = (synopsis: string): Promise<void> => {
-    return request(() => localStorage.setItem('elvarium-synopsis', synopsis));
-};
+export const getAuthBanner = (): Promise<string | null> => getItem<string>(AUTH_BANNER_KEY);
+export const saveAuthBanner = (base64String: string): Promise<void> => setItem(AUTH_BANNER_KEY, base64String);
 
-export const getSynopsisBanner = (): Promise<string | null> => {
-    return request(() => localStorage.getItem('elvarium-synopsis-banner'));
-};
 
-export const saveSynopsisBanner = (base64String: string): Promise<void> => {
-    return request(() => localStorage.setItem('elvarium-synopsis-banner', base64String));
-};
+// --- Synopsis ---
+const SYNOPSIS_KEY = 'elvarium_synopsis';
+const SYNOPSIS_BANNER_KEY = 'elvarium_synopsis_banner';
 
-// -- Characters --
-export const getCharacters = (characterType: CharacterType): Promise<Character[]> => {
-    const storageKey = `elvarium-characters-${characterType}`;
-    return request(() => getParsedItem<Character[]>(storageKey, []));
+export const getSynopsis = (): Promise<string | null> => getItem<string>(SYNOPSIS_KEY);
+export const saveSynopsis = (synopsis: string): Promise<void> => setItem(SYNOPSIS_KEY, synopsis);
+
+export const getSynopsisBanner = (): Promise<string | null> => getItem<string>(SYNOPSIS_BANNER_KEY);
+export const saveSynopsisBanner = (base64Url: string): Promise<void> => setItem(SYNOPSIS_BANNER_KEY, base64Url);
+
+
+// --- Characters ---
+const getCharacterKey = (characterType: CharacterType) => `elvarium_characters_${characterType.replace(/\s+/g, '_')}`;
+
+export const getCharacters = (characterType: CharacterType): Promise<Character[] | null> => {
+    return getItem<Character[]>(getCharacterKey(characterType));
 };
 
 export const saveCharacters = (characterType: CharacterType, characters: Character[]): Promise<void> => {
-    const storageKey = `elvarium-characters-${characterType}`;
-    return request(() => localStorage.setItem(storageKey, JSON.stringify(characters)));
+    return setItem(getCharacterKey(characterType), characters);
 };
