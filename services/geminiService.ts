@@ -2,6 +2,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { Character } from '../types';
 
 // The API key is automatically provided in the execution environment.
+// FIX: Use process.env.API_KEY as per the guidelines to fix the TypeScript error.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const generationFields: (keyof Character)[] = ['about', 'biography', 'personality', 'appearanceDescription', 'powers', 'relationships', 'trivia', 'name', 'status', 'birthplace', 'age'];
