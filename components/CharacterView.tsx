@@ -10,6 +10,10 @@ interface CharacterViewProps {
   userRole: User['role'];
 }
 
+const isQuotaExceededError = (error: any) => {
+    return error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22);
+};
+
 const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }) => {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
@@ -71,8 +75,19 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
   }, [characterType]);
 
   const saveCharacters = async (updatedCharacters: Character[]) => {
-      setCharacters(updatedCharacters);
-      await apiService.saveCharacters(characterType, updatedCharacters);
+      const oldCharacters = characters;
+      setCharacters(updatedCharacters); // Optimistic update
+      try {
+        await apiService.saveCharacters(characterType, updatedCharacters);
+      } catch(error) {
+          console.error("Failed to save characters:", error);
+          if (isQuotaExceededError(error)) {
+              alert("Could not save changes. The application storage is full. Please remove some data (e.g., gallery images) and try again.");
+          } else {
+              alert("An unknown error occurred while saving. Your changes may not be persisted.");
+          }
+          setCharacters(oldCharacters); // Rollback
+      }
   }
   
   const handleAddCharacter = () => {

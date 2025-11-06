@@ -8,6 +8,10 @@ interface HomeViewProps {
     userRole: User['role'];
 }
 
+const isQuotaExceededError = (error: any) => {
+    return error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22);
+};
+
 const DEFAULT_SYNOPSIS = "This is where your novel's synopsis will appear. Click the 'Edit Synopsis' button above to start writing!";
 
 const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
@@ -34,13 +38,19 @@ const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
     }, []);
 
     const handleBannerUpload = async (file: File) => {
+        const oldBanner = bannerUrl;
         try {
-            const base64Url = await apiService.imageFileToBase64(file, 1200, 600, 0.8);
+            const base64Url = await apiService.imageFileToBase64(file, 1200, 600, 0.7);
             setBannerUrl(base64Url);
             await apiService.saveSynopsisBanner(base64Url);
         } catch (error) {
             console.error("Error processing banner image:", error);
-            alert("There was an error processing the banner image. It may be an unsupported format.");
+            setBannerUrl(oldBanner); // Rollback
+            if (isQuotaExceededError(error)) {
+                alert("Could not save banner. The application storage is full.");
+            } else {
+                alert("There was an error processing the banner image. It may be an unsupported format.");
+            }
         }
     };
 
@@ -55,10 +65,22 @@ const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
 
     const handleSave = async () => {
         setIsSaving(true);
-        setSynopsis(editedSynopsis);
-        await apiService.saveSynopsis(editedSynopsis);
-        setIsEditing(false);
-        setIsSaving(false);
+        const oldSynopsis = synopsis;
+        setSynopsis(editedSynopsis); // Optimistic update
+        try {
+            await apiService.saveSynopsis(editedSynopsis);
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Error saving synopsis:", error);
+            if (isQuotaExceededError(error)) {
+                alert("Could not save synopsis. The application storage is full.");
+            } else {
+                alert("An error occurred while saving the synopsis.");
+            }
+            setSynopsis(oldSynopsis); // Rollback
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const renderContent = () => {

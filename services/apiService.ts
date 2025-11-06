@@ -23,6 +23,8 @@ const setItem = async <T>(key: string, value: T): Promise<void> => {
         localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
         console.error(`Error setting item ${key} in localStorage`, error);
+        // Re-throw to allow calling components to handle it, e.g., by showing a user-friendly message.
+        throw error;
     }
 };
 

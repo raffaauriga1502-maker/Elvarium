@@ -8,6 +8,10 @@ import ProfileView from './components/ProfileView';
 import { View, User } from './types';
 import * as apiService from './services/apiService';
 
+const isQuotaExceededError = (error: any) => {
+    return error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22);
+};
+
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>({ type: 'home' });
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -40,34 +44,54 @@ const App: React.FC = () => {
   };
 
   const handleLogoUpload = async (file: File) => {
+    const oldLogo = logoImageUrl;
     try {
         const base64String = await apiService.imageFileToBase64(file, 400, 400);
-        setLogoImageUrl(base64String);
+        setLogoImageUrl(base64String); // Optimistic update
         await apiService.saveLogo(base64String);
     } catch (error) {
         console.error("Error processing logo image:", error);
-        alert("There was an error processing the logo image. It may be an unsupported format.");
+        setLogoImageUrl(oldLogo); // Rollback
+        if (isQuotaExceededError(error)) {
+            alert("Could not save logo. The application storage is full.");
+        } else {
+            alert("There was an error processing the logo image. It may be an unsupported format.");
+        }
     }
   };
 
   const handleAuthBannerUpload = async (file: File) => {
+    const oldBanner = authBannerUrl;
     try {
         const base64String = await apiService.imageFileToBase64(file, 800, 400, 0.8);
-        setAuthBannerUrl(base64String);
+        setAuthBannerUrl(base64String); // Optimistic update
         await apiService.saveAuthBanner(base64String);
     } catch (error) {
         console.error("Error processing auth banner image:", error);
-        alert("There was an error processing the auth banner image. It may be an unsupported format.");
+        setAuthBannerUrl(oldBanner); // Rollback
+        if (isQuotaExceededError(error)) {
+            alert("Could not save banner. The application storage is full.");
+        } else {
+            alert("There was an error processing the auth banner image. It may be an unsupported format.");
+        }
     }
   };
 
   const handleUserUpdate = async (updatedUser: User) => {
-    setCurrentUser(updatedUser);
-    await apiService.saveCurrentUser(updatedUser);
+    const oldUser = currentUser;
+    setCurrentUser(updatedUser); // Optimistic update
+    try {
+        await apiService.saveCurrentUser(updatedUser);
 
-    const users = await apiService.getUsers();
-    const updatedUsers = users.map(u => u.username === updatedUser.username ? updatedUser : u);
-    await apiService.saveUsers(updatedUsers);
+        const users = await apiService.getUsers();
+        const updatedUsers = users.map(u => u.username === updatedUser.username ? updatedUser : u);
+        await apiService.saveUsers(updatedUsers);
+    } catch (error) {
+        console.error("Failed to update user:", error);
+        if (oldUser) setCurrentUser(oldUser); // Rollback
+        // Re-throw so ProfileView can show an alert
+        throw error;
+    }
   }
 
   if (!currentUser) {

@@ -8,6 +8,10 @@ interface ProfileViewProps {
   onUserUpdate: (user: User) => void;
 }
 
+const isQuotaExceededError = (error: any) => {
+    return error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22);
+};
+
 const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedUser, setEditedUser] = useState<User>(user);
@@ -40,9 +44,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
         setEditedUser(prev => ({...prev, bio: e.target.value}));
     };
 
-    const handleSave = () => {
-        onUserUpdate(editedUser);
-        setIsEditing(false);
+    const handleSave = async () => {
+        try {
+            await onUserUpdate(editedUser);
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Error saving profile:", error);
+            if (isQuotaExceededError(error)) {
+                alert("Could not save profile. The application storage is full.");
+            } else {
+                alert("An error occurred while saving the profile.");
+            }
+        }
     };
 
     const handleCancel = () => {

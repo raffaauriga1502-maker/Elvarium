@@ -147,7 +147,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
     const file = event.target.files?.[0];
     if (file) {
         try {
-            const base64Url = await apiService.imageFileToBase64(file, 1920, 1080, 0.7);
+            const base64Url = await apiService.imageFileToBase64(file, 1280, 720, 0.7);
             onBackgroundUpload(base64Url);
         } catch (error) {
             console.error("Error processing background image:", error);
