@@ -1,8 +1,14 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Character } from '../types';
 
-// FIX: Per @google/genai guidelines, the API key must be read from `process.env.API_KEY`.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// FIX: Per @google/genai coding guidelines, the API key must be obtained from process.env.API_KEY.
+// The execution context is assumed to have this variable pre-configured and accessible.
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+  throw new Error("API_KEY environment variable not set");
+}
+
+const ai = new GoogleGenAI({ apiKey });
 
 const generationFields: (keyof Character)[] = ['about', 'biography', 'personality', 'appearanceDescription', 'powers', 'relationships', 'trivia', 'name', 'status', 'birthplace', 'age'];
 
