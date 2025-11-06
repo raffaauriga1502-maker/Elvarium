@@ -6,6 +6,7 @@ import CharacterView from './components/CharacterView';
 import AuthView from './components/AuthView';
 import ProfileView from './components/ProfileView';
 import { View, User } from './types';
+import * as apiService from './services/apiService';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>({ type: 'home' });
@@ -15,58 +16,56 @@ const App: React.FC = () => {
   const [authBannerUrl, setAuthBannerUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedLogo = localStorage.getItem('elvarium-logo');
-    if (savedLogo) {
-      setLogoImageUrl(savedLogo);
-    }
-    const loggedInUser = localStorage.getItem('elvarium-currentUser');
-    if (loggedInUser) {
-      setCurrentUser(JSON.parse(loggedInUser));
-    }
-    const savedAuthBanner = localStorage.getItem('elvarium-auth-banner');
-    if (savedAuthBanner) {
-        setAuthBannerUrl(savedAuthBanner);
-    }
+    const loadInitialData = async () => {
+      const [savedLogo, loggedInUser, savedAuthBanner] = await Promise.all([
+        apiService.getLogo(),
+        apiService.getCurrentUser(),
+        apiService.getAuthBanner(),
+      ]);
+      if (savedLogo) setLogoImageUrl(savedLogo);
+      if (loggedInUser) setCurrentUser(loggedInUser);
+      if (savedAuthBanner) setAuthBannerUrl(savedAuthBanner);
+    };
+    loadInitialData();
   }, []);
 
-  const handleLogin = (user: User) => {
+  const handleLogin = async (user: User) => {
     setCurrentUser(user);
-    localStorage.setItem('elvarium-currentUser', JSON.stringify(user));
+    await apiService.saveCurrentUser(user);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setCurrentUser(null);
-    localStorage.removeItem('elvarium-currentUser');
+    await apiService.removeCurrentUser();
   };
 
   const handleLogoUpload = (file: File) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
         const base64String = reader.result as string;
         setLogoImageUrl(base64String);
-        localStorage.setItem('elvarium-logo', base64String);
+        await apiService.saveLogo(base64String);
     };
     reader.readAsDataURL(file);
   };
 
   const handleAuthBannerUpload = (file: File) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
         const base64String = reader.result as string;
         setAuthBannerUrl(base64String);
-        localStorage.setItem('elvarium-auth-banner', base64String);
+        await apiService.saveAuthBanner(base64String);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleUserUpdate = (updatedUser: User) => {
+  const handleUserUpdate = async (updatedUser: User) => {
     setCurrentUser(updatedUser);
-    localStorage.setItem('elvarium-currentUser', JSON.stringify(updatedUser));
+    await apiService.saveCurrentUser(updatedUser);
 
-    const storedUsers = localStorage.getItem('elvarium-users');
-    const users: User[] = storedUsers ? JSON.parse(storedUsers) : [];
+    const users = await apiService.getUsers();
     const updatedUsers = users.map(u => u.username === updatedUser.username ? updatedUser : u);
-    localStorage.setItem('elvarium-users', JSON.stringify(updatedUsers));
+    await apiService.saveUsers(updatedUsers);
   }
 
   if (!currentUser) {

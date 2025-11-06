@@ -3,6 +3,7 @@ import { Character, CharacterType, Appearance, User } from '../types';
 import CharacterCard from './CharacterCard';
 import ViewHeader from './ViewHeader';
 import CharacterAvatar from './CharacterAvatar';
+import * as apiService from '../services/apiService';
 
 interface CharacterViewProps {
   characterType: CharacterType;
@@ -13,13 +14,13 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   
-  const storageKey = `elvarium-characters-${characterType}`;
-
   useEffect(() => {
-    try {
-        const savedCharacters = localStorage.getItem(storageKey);
-        if (savedCharacters) {
-            const parsedCharacters: any[] = JSON.parse(savedCharacters);
+    const loadCharacters = async () => {
+      try {
+          const savedCharacters = await apiService.getCharacters(characterType);
+          
+          if (savedCharacters) {
+            const parsedCharacters: any[] = savedCharacters;
             
             const migratedCharacters = parsedCharacters.map(char => {
                 let migrated: Partial<Character> = {};
@@ -57,19 +58,21 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
                 return finalChar;
             });
             setCharacters(migratedCharacters);
-        } else {
-            setCharacters([]);
-        }
-    } catch (error) {
-        console.error("Failed to parse characters from localStorage", error);
-        setCharacters([]);
-    }
-    setSelectedCharacterIndex(null);
-  }, [characterType, storageKey]);
+          } else {
+              setCharacters([]);
+          }
+      } catch (error) {
+          console.error("Failed to parse characters from localStorage", error);
+          setCharacters([]);
+      }
+      setSelectedCharacterIndex(null);
+    };
+    loadCharacters();
+  }, [characterType]);
 
-  const saveCharacters = (updatedCharacters: Character[]) => {
+  const saveCharacters = async (updatedCharacters: Character[]) => {
       setCharacters(updatedCharacters);
-      localStorage.setItem(storageKey, JSON.stringify(updatedCharacters));
+      await apiService.saveCharacters(characterType, updatedCharacters);
   }
   
   const handleAddCharacter = () => {
@@ -107,18 +110,12 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
 
   const selectedCharacter = selectedCharacterIndex !== null ? characters[selectedCharacterIndex] : null;
 
-  const handleBackgroundImageUpload = (file: File) => {
+  const handleBackgroundImageUpload = (base64Url: string) => {
     if (selectedCharacterIndex === null) return;
 
-    const newImageUrl = URL.createObjectURL(file);
     const updatedCharacters = characters.map((char, index) => {
         if (index === selectedCharacterIndex) {
-            // Revoke old URL to prevent memory leaks if it exists
-            const oldUrl = char.backgroundImageUrl;
-            if (oldUrl && oldUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(oldUrl);
-            }
-            return { ...char, backgroundImageUrl: newImageUrl };
+            return { ...char, backgroundImageUrl: base64Url };
         }
         return char;
     });

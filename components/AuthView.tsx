@@ -1,5 +1,6 @@
 import React, { useState, FormEvent, useEffect } from 'react';
 import { User } from '../types';
+import * as apiService from '../services/apiService';
 
 interface AuthViewProps {
   onLogin: (user: User) => void;
@@ -13,56 +14,67 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
   const [adminCode, setAdminCode] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const users = localStorage.getItem('elvarium-users');
-    if (!users) {
-      setIsLogin(false);
-      setInfo('This appears to be the first time setup. Create your admin account by providing the secret Admin Code.');
-    }
+    const checkFirstTimeSetup = async () => {
+        const users = await apiService.getUsers();
+        if (users.length === 0) {
+            setIsLogin(false);
+            setInfo('This appears to be the first time setup. Create your admin account by providing the secret Admin Code.');
+        }
+    };
+    checkFirstTimeSetup();
   }, []);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    const storedUsers = localStorage.getItem('elvarium-users');
-    const users: User[] = storedUsers ? JSON.parse(storedUsers) : [];
+    try {
+        const users = await apiService.getUsers();
 
-    if (isLogin) {
-      // Handle Login
-      const foundUser = users.find(u => u.username === username && u.password === password);
-      if (foundUser) {
-        onLogin(foundUser);
-      } else {
-        setError('Invalid username or password.');
-      }
-    } else {
-      // Handle Sign Up
-      if (users.some(u => u.username === username)) {
-        setError('Username already exists.');
-        return;
-      }
-      
-      // The secret code is securely managed as an environment variable.
-      // A fallback is provided for local development if the variable isn't set.
-      const ADMIN_SECRET = process.env.ADMIN_SECRET || 'elvarium_admin_secret';
+        if (isLogin) {
+        // Handle Login
+        const foundUser = users.find(u => u.username === username && u.password === password);
+        if (foundUser) {
+            onLogin(foundUser);
+        } else {
+            setError('Invalid username or password.');
+        }
+        } else {
+        // Handle Sign Up
+        if (users.some(u => u.username === username)) {
+            setError('Username already exists.');
+            return;
+        }
+        
+        // The secret code is securely managed as an environment variable.
+        // A fallback is provided for local development if the variable isn't set.
+        const ADMIN_SECRET = process.env.ADMIN_SECRET || 'elvarium_admin_secret';
 
-      const newUser: User = {
-        username,
-        password,
-        role: adminCode === ADMIN_SECRET ? 'admin' : 'viewer',
-        bio: '',
-        avatarUrl: '',
-      };
-      
-      if (newUser.role === 'viewer' && adminCode) {
-          setError('Incorrect Admin Code. Registered as a viewer.');
-      }
+        const newUser: User = {
+            username,
+            password,
+            role: adminCode === ADMIN_SECRET ? 'admin' : 'viewer',
+            bio: '',
+            avatarUrl: '',
+        };
+        
+        if (newUser.role === 'viewer' && adminCode) {
+            setError('Incorrect Admin Code. Registered as a viewer.');
+        }
 
-      const updatedUsers = [...users, newUser];
-      localStorage.setItem('elvarium-users', JSON.stringify(updatedUsers));
-      onLogin(newUser);
+        const updatedUsers = [...users, newUser];
+        await apiService.saveUsers(updatedUsers);
+        onLogin(newUser);
+        }
+    } catch (e) {
+        console.error("Auth error:", e);
+        setError("An unexpected error occurred during authentication.");
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -152,9 +164,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                 )}
                 <button
                     type="submit"
-                    className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30"
+                    disabled={isLoading}
+                    className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30 disabled:bg-slate-600 disabled:cursor-not-allowed"
                 >
-                    {isLogin ? 'Log In' : 'Sign Up'}
+                    {isLoading ? 'Processing...' : (isLogin ? 'Log In' : 'Sign Up')}
                 </button>
             </form>
 

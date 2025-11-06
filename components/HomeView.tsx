@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ViewHeader from './ViewHeader';
 import { User } from '../types';
+import * as apiService from '../services/apiService';
+
 
 interface HomeViewProps {
     userRole: User['role'];
@@ -8,29 +10,41 @@ interface HomeViewProps {
 
 const DEFAULT_SYNOPSIS = "This is where your novel's synopsis will appear. Click the 'Edit Synopsis' button above to start writing!";
 
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+});
+
+
 const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
     const [synopsis, setSynopsis] = useState('');
     const [editedSynopsis, setEditedSynopsis] = useState('');
     const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [bannerUrl, setBannerUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        const savedSynopsis = localStorage.getItem('elvarium-synopsis') || DEFAULT_SYNOPSIS;
-        setSynopsis(savedSynopsis);
-        setEditedSynopsis(savedSynopsis);
-    }, []);
-
-    useEffect(() => {
-        return () => {
-            if (bannerUrl && bannerUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(bannerUrl);
+        const loadData = async () => {
+            const [savedSynopsis, savedBanner] = await Promise.all([
+                apiService.getSynopsis(),
+                apiService.getSynopsisBanner()
+            ]);
+            const synopsisContent = savedSynopsis || DEFAULT_SYNOPSIS;
+            setSynopsis(synopsisContent);
+            setEditedSynopsis(synopsisContent);
+            if (savedBanner) {
+                setBannerUrl(savedBanner);
             }
         };
-    }, [bannerUrl]);
+        loadData();
+    }, []);
 
-
-    const handleBannerUpload = (file: File) => {
-        setBannerUrl(URL.createObjectURL(file));
+    const handleBannerUpload = async (file: File) => {
+        const base64Url = await fileToBase64(file);
+        setBannerUrl(base64Url);
+        await apiService.saveSynopsisBanner(base64Url);
     };
 
     const handleEdit = () => {
@@ -42,10 +56,12 @@ const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
         setIsEditing(false);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        setIsSaving(true);
         setSynopsis(editedSynopsis);
-        localStorage.setItem('elvarium-synopsis', editedSynopsis);
+        await apiService.saveSynopsis(editedSynopsis);
         setIsEditing(false);
+        setIsSaving(false);
     };
 
     const renderContent = () => {
@@ -81,8 +97,8 @@ const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
                 {userRole === 'admin' && (
                     isEditing ? (
                         <div className="flex gap-2 justify-end">
-                            <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                                Save Synopsis
+                            <button onClick={handleSave} disabled={isSaving} className="bg-accent hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors disabled:bg-slate-600 disabled:cursor-not-allowed">
+                                {isSaving ? 'Saving...' : 'Save Synopsis'}
                             </button>
                             <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
                                 Cancel

@@ -8,13 +8,20 @@ import { generateCharacterDetail, generateCharacterImage } from '../services/gem
 
 interface CharacterCardProps {
   character: Character;
-  onBackgroundUpload: (file: File) => void;
+  onBackgroundUpload: (base64Url: string) => void;
   onUpdate: (character: Character) => void;
   onDelete: (id: string) => void;
   userRole: User['role'];
 }
 
 const STAT_KEYS: (keyof Character['stats'])[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+});
 
 const EditableInfoBlock: React.FC<{ 
     title: string; 
@@ -142,10 +149,11 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
 
   const mainAppearance = editedCharacter.appearances?.[selectedAppearanceIndex];
 
-  const handleBackgroundFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBackgroundFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      onBackgroundUpload(file);
+      const base64Url = await fileToBase64(file);
+      onBackgroundUpload(base64Url);
     }
   };
   
@@ -172,13 +180,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
     }));
   };
   
-  const handleAppearanceImageChange = (id: string, file: File) => {
-    const newUrl = URL.createObjectURL(file);
+  const handleAppearanceImageChange = async (id: string, file: File) => {
+    const newUrl = await fileToBase64(file);
     setEditedCharacter(prev => {
-        const oldAppearance = prev.appearances.find(app => app.id === id);
-        if (oldAppearance?.imageUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(oldAppearance.imageUrl);
-        }
         return {
             ...prev,
             appearances: prev.appearances.map(app => app.id === id ? { ...app, imageUrl: newUrl } : app)
@@ -232,13 +236,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
     }));
   };
 
-  const handleGalleryImageChange = (id: string, file: File) => {
-    const newUrl = URL.createObjectURL(file);
+  const handleGalleryImageChange = async (id: string, file: File) => {
+    const newUrl = await fileToBase64(file);
     setEditedCharacter(prev => {
-        const oldImage = prev.gallery.find(img => img.id === id);
-        if (oldImage?.imageUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(oldImage.imageUrl);
-        }
         return {
             ...prev,
             gallery: prev.gallery.map(img => img.id === id ? { ...img, imageUrl: newUrl } : img)
@@ -289,9 +289,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
 
         setEditedCharacter(prev => {
             const currentAppearance = prev.appearances[selectedAppearanceIndex];
-            if (currentAppearance?.imageUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(currentAppearance.imageUrl);
-            }
             return {
                 ...prev,
                 appearances: prev.appearances.map((app, index) => 
