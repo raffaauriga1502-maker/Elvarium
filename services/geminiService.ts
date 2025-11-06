@@ -1,8 +1,8 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Character } from '../types';
 
-// The API key is automatically provided in the execution environment.
-// FIX: Use process.env.API_KEY as per the guidelines to fix the TypeScript error.
+// FIX: Per coding guidelines, the API key must be sourced from process.env.API_KEY.
+// This also resolves the TypeScript error "Property 'env' does not exist on type 'ImportMeta'".
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const generationFields: (keyof Character)[] = ['about', 'biography', 'personality', 'appearanceDescription', 'powers', 'relationships', 'trivia', 'name', 'status', 'birthplace', 'age'];
