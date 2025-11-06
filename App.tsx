@@ -39,24 +39,26 @@ const App: React.FC = () => {
     await apiService.removeCurrentUser();
   };
 
-  const handleLogoUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-        const base64String = reader.result as string;
+  const handleLogoUpload = async (file: File) => {
+    try {
+        const base64String = await apiService.imageFileToBase64(file, 400, 400);
         setLogoImageUrl(base64String);
         await apiService.saveLogo(base64String);
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+        console.error("Error processing logo image:", error);
+        alert("There was an error processing the logo image. It may be an unsupported format.");
+    }
   };
 
-  const handleAuthBannerUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-        const base64String = reader.result as string;
+  const handleAuthBannerUpload = async (file: File) => {
+    try {
+        const base64String = await apiService.imageFileToBase64(file, 800, 400, 0.8);
         setAuthBannerUrl(base64String);
         await apiService.saveAuthBanner(base64String);
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+        console.error("Error processing auth banner image:", error);
+        alert("There was an error processing the auth banner image. It may be an unsupported format.");
+    }
   };
 
   const handleUserUpdate = async (updatedUser: User) => {

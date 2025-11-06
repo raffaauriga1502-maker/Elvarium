@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import ViewHeader from './ViewHeader';
+import * as apiService from '../services/apiService';
 
 interface ProfileViewProps {
   user: User;
@@ -22,15 +23,16 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
         }
     };
     
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64String = reader.result as string;
+            try {
+                const base64String = await apiService.imageFileToBase64(file, 256, 256, 0.9);
                 setEditedUser(prev => ({ ...prev, avatarUrl: base64String }));
-            };
-            reader.readAsDataURL(file);
+            } catch (error) {
+                console.error("Error processing avatar image:", error);
+                alert("There was an error processing the avatar image.");
+            }
         }
     };
 

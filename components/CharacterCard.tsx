@@ -4,6 +4,7 @@ import RadarChart from './RadarChart';
 import BarChart from './BarChart';
 import ImageModal from './ImageModal';
 import { generateCharacterDetail, generateCharacterImage } from '../services/geminiService';
+import * as apiService from '../services/apiService';
 
 
 interface CharacterCardProps {
@@ -15,13 +16,6 @@ interface CharacterCardProps {
 }
 
 const STAT_KEYS: (keyof Character['stats'])[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
-
-const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-});
 
 const EditableInfoBlock: React.FC<{ 
     title: string; 
@@ -152,8 +146,13 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
   const handleBackgroundFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const base64Url = await fileToBase64(file);
-      onBackgroundUpload(base64Url);
+        try {
+            const base64Url = await apiService.imageFileToBase64(file, 1920, 1080, 0.7);
+            onBackgroundUpload(base64Url);
+        } catch (error) {
+            console.error("Error processing background image:", error);
+            alert("There was an error processing the background image.");
+        }
     }
   };
   
@@ -181,13 +180,18 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
   };
   
   const handleAppearanceImageChange = async (id: string, file: File) => {
-    const newUrl = await fileToBase64(file);
-    setEditedCharacter(prev => {
-        return {
-            ...prev,
-            appearances: prev.appearances.map(app => app.id === id ? { ...app, imageUrl: newUrl } : app)
-        };
-    });
+    try {
+        const newUrl = await apiService.imageFileToBase64(file, 512, 512, 0.8);
+        setEditedCharacter(prev => {
+            return {
+                ...prev,
+                appearances: prev.appearances.map(app => app.id === id ? { ...app, imageUrl: newUrl } : app)
+            };
+        });
+    } catch (error) {
+        console.error("Error processing appearance image:", error);
+        alert("There was an error processing the appearance image.");
+    }
   };
 
   const handleAddAppearance = () => {
@@ -237,13 +241,18 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onBackgroundUp
   };
 
   const handleGalleryImageChange = async (id: string, file: File) => {
-    const newUrl = await fileToBase64(file);
-    setEditedCharacter(prev => {
-        return {
-            ...prev,
-            gallery: prev.gallery.map(img => img.id === id ? { ...img, imageUrl: newUrl } : img)
-        };
-    });
+    try {
+        const newUrl = await apiService.imageFileToBase64(file, 1024, 1024, 0.8);
+        setEditedCharacter(prev => {
+            return {
+                ...prev,
+                gallery: prev.gallery.map(img => img.id === id ? { ...img, imageUrl: newUrl } : img)
+            };
+        });
+    } catch (error) {
+        console.error("Error processing gallery image:", error);
+        alert("There was an error processing the gallery image.");
+    }
   };
 
   const handleGalleryCaptionChange = (id: string, caption: string) => {

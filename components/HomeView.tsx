@@ -10,14 +10,6 @@ interface HomeViewProps {
 
 const DEFAULT_SYNOPSIS = "This is where your novel's synopsis will appear. Click the 'Edit Synopsis' button above to start writing!";
 
-const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-});
-
-
 const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
     const [synopsis, setSynopsis] = useState('');
     const [editedSynopsis, setEditedSynopsis] = useState('');
@@ -42,9 +34,14 @@ const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
     }, []);
 
     const handleBannerUpload = async (file: File) => {
-        const base64Url = await fileToBase64(file);
-        setBannerUrl(base64Url);
-        await apiService.saveSynopsisBanner(base64Url);
+        try {
+            const base64Url = await apiService.imageFileToBase64(file, 1200, 600, 0.8);
+            setBannerUrl(base64Url);
+            await apiService.saveSynopsisBanner(base64Url);
+        } catch (error) {
+            console.error("Error processing banner image:", error);
+            alert("There was an error processing the banner image. It may be an unsupported format.");
+        }
     };
 
     const handleEdit = () => {
