@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Character } from '../types';
+import * as apiService from '../services/apiService';
 
 interface CharacterAvatarProps {
   character?: Character;
@@ -7,7 +8,36 @@ interface CharacterAvatarProps {
   onClick?: () => void;
 }
 
+const useResolvedAvatarUrl = (character?: Character) => {
+    const [url, setUrl] = useState<string | null>(null);
+    const avatarKey = character?.appearances?.[0]?.imageUrl;
+
+    useEffect(() => {
+        let isCancelled = false;
+        if (avatarKey) {
+            apiService.resolveImageUrl(avatarKey).then(resolvedUrl => {
+                if (!isCancelled) {
+                    setUrl(resolvedUrl);
+                }
+            });
+        } else {
+            setUrl(null);
+        }
+        return () => {
+            isCancelled = true;
+            if (url && url.startsWith('blob:')) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [avatarKey]);
+
+    return url;
+};
+
+
 const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading = false, onClick }) => {
+  const resolvedAvatarUrl = useResolvedAvatarUrl(character);
+  
   if (isLoading) {
     return (
       <div className="w-32 h-32 md:w-40 md:h-40 animate-pulse bg-primary rounded-xl"></div>
@@ -16,8 +46,6 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
 
   if (!character) return null;
 
-  const avatarUrl = character.appearances?.[0]?.imageUrl;
-
   return (
     <button
       onClick={onClick}
@@ -25,8 +53,8 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
       aria-label={`View details for ${character.name}`}
     >
       <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden border-4 border-secondary group-hover:border-accent transition-colors duration-300 shadow-lg">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={character.name} className="w-full h-full object-cover" />
+        {resolvedAvatarUrl ? (
+          <img src={resolvedAvatarUrl} alt={character.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-primary flex items-center justify-center">
              <div 

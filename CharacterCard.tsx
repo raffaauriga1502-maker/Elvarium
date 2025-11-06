@@ -1,12 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Character, Appearance, GalleryImage, User } from '../types';
-import RadarChart from './RadarChart';
-import BarChart from './BarChart';
-import ImageModal from './ImageModal';
-import { generateCharacterDetail, generateCharacterImage } from '../services/geminiService';
-import * as apiService from '../services/apiService';
-// FIX: Import idbService to handle saving images to IndexedDB.
-import * as idbService from '../services/idbService';
+import { Character, Appearance, GalleryImage, User } from './types';
+import RadarChart from './components/RadarChart';
+import BarChart from './components/BarChart';
+import ImageModal from './components/ImageModal';
+import { generateCharacterDetail, generateCharacterImage } from './services/geminiService';
+import * as apiService from './services/apiService';
+import * as idbService from './services/idbService';
 
 
 interface CharacterCardProps {

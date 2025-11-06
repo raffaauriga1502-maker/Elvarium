@@ -23,34 +23,29 @@ const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
 
     useEffect(() => {
         const loadData = async () => {
-            const [savedSynopsis, savedBanner] = await Promise.all([
+            const [savedSynopsis, bannerKey] = await Promise.all([
                 apiService.getSynopsis(),
                 apiService.getSynopsisBanner()
             ]);
             const synopsisContent = savedSynopsis || DEFAULT_SYNOPSIS;
             setSynopsis(synopsisContent);
             setEditedSynopsis(synopsisContent);
-            if (savedBanner) {
-                setBannerUrl(savedBanner);
+            if (bannerKey) {
+                apiService.resolveImageUrl(bannerKey).then(setBannerUrl);
             }
         };
         loadData();
     }, []);
 
     const handleBannerUpload = async (file: File) => {
-        const oldBanner = bannerUrl;
         try {
-            const base64Url = await apiService.imageFileToBase64(file, 1200, 600, 0.7);
-            setBannerUrl(base64Url);
-            await apiService.saveSynopsisBanner(base64Url);
+            const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1200, maxHeight: 600, quality: 0.7 });
+            await apiService.saveSynopsisBanner(imageKey);
+            const resolvedUrl = await apiService.resolveImageUrl(imageKey);
+            setBannerUrl(resolvedUrl);
         } catch (error) {
             console.error("Error processing banner image:", error);
-            setBannerUrl(oldBanner); // Rollback
-            if (isQuotaExceededError(error)) {
-                alert("Could not save banner. The application storage is full.");
-            } else {
-                alert("There was an error processing the banner image. It may be an unsupported format.");
-            }
+            alert("There was an error processing the banner image. It may be an unsupported format.");
         }
     };
 

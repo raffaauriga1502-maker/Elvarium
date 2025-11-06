@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import * as apiService from '../services/apiService';
 
 interface HeaderProps {
   title: string;
@@ -9,6 +10,20 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout }) => {
+  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (user.avatarUrl) {
+        apiService.resolveImageUrl(user.avatarUrl).then(url => {
+            if (!isCancelled) setResolvedAvatarUrl(url);
+        });
+    } else {
+        setResolvedAvatarUrl(null);
+    }
+    return () => { isCancelled = true; };
+  }, [user.avatarUrl]);
+
   return (
     <header className="bg-crystalline shadow-md p-4 flex items-center justify-between">
        <div className="flex items-center">
@@ -25,8 +40,8 @@ const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout }) =
           <span className="text-xs"> ({user.role})</span>
         </div>
         <div className="w-10 h-10 rounded-full bg-secondary border-2 border-slate-600 overflow-hidden">
-          {user.avatarUrl ? (
-            <img src={user.avatarUrl} alt="User avatar" className="w-full h-full object-cover" />
+          {resolvedAvatarUrl ? (
+            <img src={resolvedAvatarUrl} alt="User avatar" className="w-full h-full object-cover" />
           ) : (
             <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-slate-500" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />

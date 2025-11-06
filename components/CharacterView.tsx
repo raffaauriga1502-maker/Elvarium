@@ -22,51 +22,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
     const loadCharacters = async () => {
       try {
           const savedCharacters = await apiService.getCharacters(characterType);
-          
-          if (savedCharacters) {
-            const parsedCharacters: any[] = savedCharacters;
-            
-            const migratedCharacters = parsedCharacters.map(char => {
-                let migrated: Partial<Character> = {};
-
-                if (char.imageUrl && (!char.appearances || char.appearances.length === 0)) {
-                    // Handle older `imageUrl` field, migrating it to `appearances`
-                    migrated.appearances = [{ id: crypto.randomUUID(), arcName: 'Default', imageUrl: char.imageUrl }];
-                } else if (!char.appearances) {
-                    // Ensure appearances array always exists
-                    migrated.appearances = [];
-                }
-
-                if (!char.gallery) {
-                    // Add gallery array if it doesn't exist
-                    migrated.gallery = [];
-                }
-                
-                const finalChar: Character = {
-                    ...char,
-                    status: char.status || 'Alive',
-                    about: char.about || '',
-                    biography: char.biography || char.backgroundDescription || '',
-                    personality: char.personality || '',
-                    appearanceDescription: char.appearanceDescription || '',
-                    powers: char.powers || '',
-                    relationships: char.relationships || '',
-                    trivia: char.trivia || '',
-                    ...migrated,
-                };
-                
-                // Clean up old properties
-                delete (finalChar as any).backgroundDescription;
-                delete (finalChar as any).imageUrl;
-
-                return finalChar;
-            });
-            setCharacters(migratedCharacters);
-          } else {
-              setCharacters([]);
-          }
+          setCharacters(savedCharacters || []);
       } catch (error) {
-          console.error("Failed to parse characters from localStorage", error);
+          console.error("Failed to load characters", error);
           setCharacters([]);
       }
       setSelectedCharacterIndex(null);
@@ -125,18 +83,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
 
   const selectedCharacter = selectedCharacterIndex !== null ? characters[selectedCharacterIndex] : null;
 
-  const handleBackgroundImageUpload = (base64Url: string) => {
-    if (selectedCharacterIndex === null) return;
-
-    const updatedCharacters = characters.map((char, index) => {
-        if (index === selectedCharacterIndex) {
-            return { ...char, backgroundImageUrl: base64Url };
-        }
-        return char;
-    });
-    saveCharacters(updatedCharacters);
-  };
-
   const handleCharacterUpdate = (updatedCharacter: Character) => {
     if (selectedCharacterIndex === null) return;
     const updatedCharacters = characters.map((char, index) => 
@@ -181,7 +127,6 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
         </button>
         <CharacterCard 
             character={selectedCharacter}
-            onBackgroundUpload={handleBackgroundImageUpload}
             onUpdate={handleCharacterUpdate}
             onDelete={handleCharacterDelete}
             userRole={userRole}

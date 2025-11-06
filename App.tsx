@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
+import Sidebar from './Sidebar';
 import Header from './components/Header';
 import HomeView from './components/HomeView';
 import CharacterView from './components/CharacterView';
@@ -21,14 +21,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadInitialData = async () => {
-      const [savedLogo, loggedInUser, savedAuthBanner] = await Promise.all([
-        apiService.getLogo(),
-        apiService.getCurrentUser(),
-        apiService.getAuthBanner(),
-      ]);
-      if (savedLogo) setLogoImageUrl(savedLogo);
-      if (loggedInUser) setCurrentUser(loggedInUser);
-      if (savedAuthBanner) setAuthBannerUrl(savedAuthBanner);
+        const [logoKey, loggedInUser, authBannerKey] = await Promise.all([
+            apiService.getLogo(),
+            apiService.getCurrentUser(),
+            apiService.getAuthBanner(),
+        ]);
+        if (logoKey) apiService.resolveImageUrl(logoKey).then(setLogoImageUrl);
+        if (loggedInUser) setCurrentUser(loggedInUser);
+        if (authBannerKey) apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
     };
     loadInitialData();
   }, []);
@@ -44,36 +44,26 @@ const App: React.FC = () => {
   };
 
   const handleLogoUpload = async (file: File) => {
-    const oldLogo = logoImageUrl;
     try {
-        const base64String = await apiService.imageFileToBase64(file, 400, 400);
-        setLogoImageUrl(base64String); // Optimistic update
-        await apiService.saveLogo(base64String);
+        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 400, maxHeight: 400 });
+        await apiService.saveLogo(imageKey);
+        const resolvedUrl = await apiService.resolveImageUrl(imageKey);
+        setLogoImageUrl(resolvedUrl);
     } catch (error) {
         console.error("Error processing logo image:", error);
-        setLogoImageUrl(oldLogo); // Rollback
-        if (isQuotaExceededError(error)) {
-            alert("Could not save logo. The application storage is full.");
-        } else {
-            alert("There was an error processing the logo image. It may be an unsupported format.");
-        }
+        alert("There was an error processing the logo image. It may be an unsupported format.");
     }
   };
 
   const handleAuthBannerUpload = async (file: File) => {
-    const oldBanner = authBannerUrl;
     try {
-        const base64String = await apiService.imageFileToBase64(file, 800, 400, 0.8);
-        setAuthBannerUrl(base64String); // Optimistic update
-        await apiService.saveAuthBanner(base64String);
+        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 800, maxHeight: 400, quality: 0.8 });
+        await apiService.saveAuthBanner(imageKey);
+        const resolvedUrl = await apiService.resolveImageUrl(imageKey);
+        setAuthBannerUrl(resolvedUrl);
     } catch (error) {
         console.error("Error processing auth banner image:", error);
-        setAuthBannerUrl(oldBanner); // Rollback
-        if (isQuotaExceededError(error)) {
-            alert("Could not save banner. The application storage is full.");
-        } else {
-            alert("There was an error processing the auth banner image. It may be an unsupported format.");
-        }
+        alert("There was an error processing the auth banner image. It may be an unsupported format.");
     }
   };
 

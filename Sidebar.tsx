@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, CharacterType, User } from '../types';
+import { View, CharacterType, User } from './types';
 
 interface SidebarProps {
   activeView: View;

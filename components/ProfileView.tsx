@@ -15,11 +15,24 @@ const isQuotaExceededError = (error: any) => {
 const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedUser, setEditedUser] = useState<User>(user);
+    const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setEditedUser(user);
     }, [user]);
+
+    useEffect(() => {
+        let isCancelled = false;
+        if (editedUser.avatarUrl) {
+            apiService.resolveImageUrl(editedUser.avatarUrl).then(url => {
+                if (!isCancelled) setResolvedAvatarUrl(url);
+            });
+        } else {
+            setResolvedAvatarUrl(null);
+        }
+        return () => { isCancelled = true; };
+    }, [editedUser.avatarUrl]);
 
     const handleAvatarClick = () => {
         if (isEditing) {
@@ -31,8 +44,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
         const file = e.target.files?.[0];
         if (file) {
             try {
-                const base64String = await apiService.imageFileToBase64(file, 256, 256, 0.9);
-                setEditedUser(prev => ({ ...prev, avatarUrl: base64String }));
+                const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 256, maxHeight: 256, quality: 0.9 });
+                setEditedUser(prev => ({ ...prev, avatarUrl: imageKey }));
             } catch (error) {
                 console.error("Error processing avatar image:", error);
                 alert("There was an error processing the avatar image.");
@@ -98,8 +111,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
                         onClick={handleAvatarClick}
                         aria-label={isEditing ? 'Change avatar' : 'User avatar'}
                     >
-                        {editedUser.avatarUrl ? (
-                            <img src={editedUser.avatarUrl} alt="User avatar" className="w-full h-full object-cover" />
+                        {resolvedAvatarUrl ? (
+                            <img src={resolvedAvatarUrl} alt="User avatar" className="w-full h-full object-cover" />
                         ) : (
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-slate-500 p-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
