@@ -1,10 +1,6 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Character } from '../types';
 
-// Fix: Adhere to the coding guidelines by using process.env.API_KEY for the API key.
-// The API key must be obtained exclusively from the environment variable `process.env.API_KEY`.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const generationFields: (keyof Character)[] = ['about', 'biography', 'personality', 'appearanceDescription', 'powers', 'relationships', 'trivia', 'name', 'status', 'birthplace', 'age'];
 
 /**
@@ -17,6 +13,8 @@ export async function generateCharacterDetail(
   character: Partial<Character>,
   detailToGenerate: keyof Pick<Character, 'about' | 'biography' | 'personality' | 'appearanceDescription' | 'powers' | 'relationships' | 'trivia'>
 ): Promise<string> {
+  // Fix: Initialize the AI client here to prevent crashing on app load.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Build a context string from existing character data to guide the AI
   const context = generationFields
@@ -54,6 +52,9 @@ ${context}
 export async function generateCharacterImage(
   character: Partial<Character>
 ): Promise<string> {
+  // Fix: Initialize the AI client here to prevent crashing on app load.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   const prompt = `A high-quality, detailed fantasy character portrait of ${character.name || 'a character'}.
   
 Appearance: ${character.appearanceDescription || 'not specified'}.
