@@ -10,6 +10,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [adminCode, setAdminCode] = useState('');
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
 
@@ -17,7 +18,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
     const users = localStorage.getItem('elvarium-users');
     if (!users) {
       setIsLogin(false);
-      setInfo('Create your admin account to begin. All other accounts will be viewers.');
+      setInfo('This appears to be the first time setup. Create your admin account by providing the secret Admin Code.');
     }
   }, []);
 
@@ -43,19 +44,36 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
         return;
       }
       
+      // The secret code is securely managed as an environment variable.
+      // A fallback is provided for local development if the variable isn't set.
+      const ADMIN_SECRET = process.env.ADMIN_SECRET || 'elvarium_admin_secret';
+
       const newUser: User = {
         username,
         password,
-        role: users.length === 0 ? 'admin' : 'viewer',
+        role: adminCode === ADMIN_SECRET ? 'admin' : 'viewer',
         bio: '',
         avatarUrl: '',
       };
       
+      if (newUser.role === 'viewer' && adminCode) {
+          setError('Incorrect Admin Code. Registered as a viewer.');
+      }
+
       const updatedUsers = [...users, newUser];
       localStorage.setItem('elvarium-users', JSON.stringify(updatedUsers));
       onLogin(newUser);
     }
   };
+
+  const handleToggleMode = () => {
+    setIsLogin(!isLogin);
+    setError('');
+    setInfo('');
+    setUsername('');
+    setPassword('');
+    setAdminCode('');
+  }
 
   return (
     <div className="w-full h-screen flex items-center justify-center bg-primary p-4">
@@ -85,8 +103,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                     </h2>
             </div>
             
-            {error && <p className="bg-red-900/50 text-red-300 p-3 rounded-md text-center mb-4">{error}</p>}
-            {info && !error && <p className="bg-sky-900/50 text-sky-300 p-3 rounded-md text-center mb-4">{info}</p>}
+            {error && <p className="bg-red-900/50 text-red-300 p-3 rounded-md text-center mb-4 text-sm">{error}</p>}
+            {info && !error && <p className="bg-sky-900/50 text-sky-300 p-3 rounded-md text-center mb-4 text-sm">{info}</p>}
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
@@ -117,6 +135,21 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                         placeholder="••••••••"
                     />
                 </div>
+                {!isLogin && (
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="adminCode">
+                            Admin Code (Optional)
+                        </label>
+                        <input
+                            id="adminCode"
+                            type="password"
+                            value={adminCode}
+                            onChange={(e) => setAdminCode(e.target.value)}
+                            className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition"
+                            placeholder="Enter secret code for admin access"
+                        />
+                    </div>
+                )}
                 <button
                     type="submit"
                     className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30"
@@ -127,7 +160,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
 
             <p className="text-center text-sm text-text-secondary mt-6">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
-                <button onClick={() => { setIsLogin(!isLogin); setError(''); setInfo(''); }} className="font-semibold text-accent hover:text-sky-300 ml-2">
+                <button onClick={handleToggleMode} className="font-semibold text-accent hover:text-sky-300 ml-2">
                     {isLogin ? 'Sign Up' : 'Log In'}
                 </button>
             </p>
