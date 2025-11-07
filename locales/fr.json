@@ -1,0 +1,221 @@
+{
+  "header": {
+    "titleHome": "Accueil",
+    "titleProfile": "Profil Utilisateur",
+    "titleCharacters": "Personnages : {characterType}",
+    "logout": "Déconnexion"
+  },
+  "sidebar": {
+    "profile": "Profil",
+    "home": "Accueil",
+    "characters": "Personnages",
+    "adminControls": "Contrôles Admin",
+    "uploadLoginBanner": "Charger Bannière de Connexion",
+    "shareAndBackup": "Partager & Sauvegarder",
+    "copyShareLink": "Copier le Lien de Partage",
+    "generating": "Génération...",
+    "copied": "Copié !",
+    "error": "Erreur !",
+    "downloadFile": "Télécharger Fichier",
+    "uploadFile": "Charger Fichier",
+    "uploadLogo": "Charger Logo",
+    "changeLogo": "Changer le logo",
+    "prompts": {
+      "importConfirm": "Êtes-vous sûr de vouloir importer ces données ? Cela écrasera toutes les données existantes dans l'application."
+    },
+    "alerts": {
+      "importSuccess": "Importation réussie ! L'application va maintenant se recharger.",
+      "importError": "Une erreur s'est produite lors de l'importation. Le fichier est peut-être invalide. Consultez la console pour plus de détails.",
+      "shareLinkErrorFallback": "Une erreur inconnue s'est produite lors de la génération du lien."
+    },
+    "characterTypes": {
+      "mainProtagonist": "Protagoniste Principal",
+      "allies": "Alliés",
+      "enemies": "Ennemis"
+    },
+    "aria": {
+      "generateShareLink": "Générer et copier un lien de partage",
+      "downloadData": "Télécharger toutes les données de l'application sous forme de fichier",
+      "importData": "Importer les données de l'application à partir d'un fichier"
+    }
+  },
+  "auth": {
+    "welcomeBack": "Bon Retour",
+    "createAccount": "Créer un Compte",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "adminCode": "Code Admin (Optionnel)",
+    "adminCodePlaceholder": "Entrez le code secret pour l'accès admin",
+    "loginButton": "Se connecter",
+    "signupButton": "S'inscrire",
+    "processing": "Traitement...",
+    "noAccount": "Pas de compte ?",
+    "haveAccount": "Déjà un compte ?",
+    "invalidCredentials": "Nom d'utilisateur ou mot de passe invalide.",
+    "usernameExists": "Ce nom d'utilisateur existe déjà.",
+    "firstTimeSetup": "Cela semble être la première configuration. Créez votre compte administrateur en fournissant le code administrateur secret.",
+    "incorrectAdminCode": "Code administrateur incorrect. Enregistré en tant que spectateur.",
+    "errors": {
+      "generic": "Une erreur inattendue est survenue lors de l'authentification."
+    },
+    "placeholders": {
+      "username": "ex: elara_tempete"
+    }
+  },
+  "home": {
+    "synopsis": "Synopsis",
+    "editSynopsis": "Modifier le Synopsis",
+    "saveSynopsis": "Sauvegarder le Synopsis",
+    "saving": "Sauvegarde...",
+    "cancel": "Annuler",
+    "defaultSynopsis": "C'est ici que le synopsis de votre roman apparaîtra. Cliquez sur le bouton 'Modifier le Synopsis' ci-dessus pour commencer à écrire !",
+    "aria": {
+      "synopsisEditor": "Éditeur de synopsis"
+    },
+    "errors": {
+      "bannerProcessing": "Une erreur s'est produite lors du traitement de l'image de la bannière. Le format est peut-être non pris en charge.",
+      "saveSynopsisQuota": "Impossible d'enregistrer le synopsis. Le stockage de l'application est plein.",
+      "saveSynopsisGeneric": "Une erreur s'est produite lors de l'enregistrement du synopsis."
+    }
+  },
+  "characters": {
+    "allArcs": "Tous les Arcs",
+    "addCharacter": "Ajouter Personnage",
+    "backTo": "Retour à {characterType}",
+    "noCharactersForArc": "Aucun personnage trouvé pour l'arc \"{arcName}\".",
+    "noCharactersYet": "Aucun personnage créé pour le moment. {cta}",
+    "adminCta": "Cliquez sur \"Ajouter Personnage\" pour commencer.",
+    "viewDetailsFor": "Voir les détails de {characterName}",
+    "aria": {
+      "filterByArc": "Filtrer les personnages par arc"
+    },
+    "newCharacter": {
+      "name": "Nouveau Personnage",
+      "unknown": "Inconnu",
+      "about": "Un bref résumé du personnage.",
+      "biography": "L'histoire de la vie du personnage.",
+      "personality": "Détails sur leurs traits et leur comportement.",
+      "appearanceDescription": "Une description textuelle de leur apparence.",
+      "powers": "Capacités et compétences.",
+      "relationships": "Liens avec d'autres personnages.",
+      "trivia": "Faits intéressants et notes.",
+      "defaultPortraitName": "Portrait par Défaut",
+      "defaultArcName": "Par Défaut"
+    },
+    "errors": {
+      "saveQuota": "Impossible d'enregistrer les modifications. Le stockage de l'application est plein. Veuillez supprimer certaines données (par exemple, les images de la galerie) et réessayer.",
+      "saveGeneric": "Une erreur inconnue s'est produite lors de la sauvegarde. Vos modifications pourraient ne pas être conservées."
+    }
+  },
+  "characterCard": {
+    "save": "Sauvegarder",
+    "cancel": "Annuler",
+    "editBackground": "Modifier l'Arrière-plan",
+    "editDetails": "Modifier les Détails",
+    "deleteCharacter": "Supprimer le Personnage",
+    "portrait": "Portrait",
+    "outfit": "Tenue",
+    "editPortraits": "Modifier les Portraits",
+    "portraitName": "Nom du Portrait",
+    "addPortrait": "+ Ajouter un Portrait",
+    "atLeastOnePortrait": "Un personnage doit avoir au moins un portrait.",
+    "editOutfitsFor": "Modifier les Tenues pour \"{portraitName}\"",
+    "arcName": "Nom de l'Arc",
+    "addOutfit": "+ Ajouter une Tenue",
+    "atLeastOneOutfit": "Un portrait doit avoir au moins une tenue.",
+    "status": "Statut",
+    "birthplace": "Lieu de Naissance",
+    "age": "Âge",
+    "height": "Taille",
+    "weight": "Poids",
+    "bloodType": "Groupe Sanguin",
+    "associatedArcs": "Arcs Associés",
+    "arcsPlaceholder": "ex: Le Début, La Guerre, L'Après",
+    "arcsHelpText": "Séparez les noms d'arcs par une virgule.",
+    "about": "À propos",
+    "biography": "Biographie",
+    "personality": "Personnalité",
+    "appearance": "Apparence",
+    "powers": "Pouvoirs & Capacités",
+    "relationships": "Relations",
+    "stats": "Statistiques",
+    "radar": "Radar",
+    "bar": "Barres",
+    "trivia": "Anecdotes",
+    "gallery": "Galerie",
+    "caption": "Légende",
+    "addGalleryImage": "+ Ajouter une Image à la Galerie",
+    "noGalleryImages": "Aucune image dans la galerie pour le moment.",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce personnage ? Cette action est irréversible.",
+    "statsShort": {
+      "strength": "FOR",
+      "dexterity": "DEX",
+      "constitution": "CON",
+      "intelligence": "INT",
+      "wisdom": "SAG",
+      "charisma": "CHA"
+    },
+    "statusOptions": {
+      "alive": "Vivant",
+      "deceased": "Décédé",
+      "unknown": "Inconnu"
+    },
+    "placeholders": {
+      "details": "Entrez les détails ici..."
+    },
+    "noInformation": "Aucune information fournie.",
+    "newPortraitName": "Nouveau Portrait",
+    "newArcName": "Nouvel Arc"
+  },
+  "profile": {
+    "profileTitle": "Profil de {username}",
+    "editProfile": "Modifier le Profil",
+    "save": "Sauvegarder",
+    "cancel": "Annuler",
+    "changeAvatar": "Changer d'avatar",
+    "userAvatar": "Avatar de l'utilisateur",
+    "bio": "Bio",
+    "bioPlaceholder": "Parlez-nous un peu de vous...",
+    "noBio": "Aucune biographie fournie.",
+    "errors": {
+      "avatarProcessing": "Une erreur s'est produite lors du traitement de l'image de l'avatar.",
+      "saveQuota": "Impossible de sauvegarder le profil. Le stockage de l'application est plein.",
+      "saveGeneric": "Une erreur s'est produite lors de la sauvegarde du profil."
+    }
+  },
+  "importModal": {
+    "title": "Monde Partagé Détecté",
+    "body": "Voulez-vous charger ce monde ?",
+    "warning": "Attention : Cela écrasera toutes vos données actuelles.",
+    "loadButton": "Charger le Monde",
+    "dismissButton": "Annuler",
+    "loading": "Chargement du Monde...",
+    "successTitle": "Succès !",
+    "successBody": "Le monde partagé a été chargé. L'application va maintenant se recharger pour appliquer les changements.",
+    "errorTitle": "Échec de l'Importation",
+    "errorBody": "Le lien est peut-être corrompu ou invalide."
+  },
+  "viewHeader": {
+    "uploadBanner": "Charger une Bannière",
+    "bannerSize": "Taille recommandée : 767x325"
+  },
+  "languages": {
+    "en": "Anglais",
+    "es": "Espagnol",
+    "fr": "Français",
+    "de": "Allemand",
+    "id": "Indonésien"
+  },
+  "languageSwitcher": {
+    "aria": {
+      "changeLanguage": "Changer de langue"
+    }
+  },
+  "app": {
+    "errors": {
+      "logoProcessing": "Une erreur s'est produite lors du traitement de l'image du logo. Le format est peut-être non pris en charge.",
+      "authBannerProcessing": "Une erreur s'est produite lors du traitement de l'image de la bannière d'authentification. Le format est peut-être non pris en charge.",
+      "importFailed": "Impossible de charger le monde partagé. Le lien est peut-être corrompu, expiré ou invalide."
+    }
+  }
+}

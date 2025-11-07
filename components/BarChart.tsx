@@ -1,5 +1,6 @@
 import React from 'react';
 import { Character } from '../types';
+import { useI18n } from '../contexts/I18nContext';
 
 interface BarChartProps {
   stats: Character['stats'];
@@ -8,10 +9,11 @@ interface BarChartProps {
 }
 
 const STAT_KEYS: (keyof Character['stats'])[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
-const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
 const MAX_STAT_VALUE = 20;
 
 const BarChart: React.FC<BarChartProps> = ({ stats, width = 300, height = 200 }) => {
+  const { t } = useI18n();
+  const STAT_LABELS = STAT_KEYS.map(key => t(`characterCard.statsShort.${key}`));
   const barCount = STAT_KEYS.length;
   const padding = { top: 20, right: 20, bottom: 30, left: 30 };
   const chartWidth = width - padding.left - padding.right;

@@ -1,6 +1,7 @@
 import React, { useState, FormEvent, useEffect } from 'react';
 import { User } from '../types';
 import * as apiService from '../services/apiService';
+import { useI18n } from '../contexts/I18nContext';
 
 interface AuthViewProps {
   onLogin: (user: User) => void;
@@ -15,17 +16,18 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const checkFirstTimeSetup = async () => {
         const users = await apiService.getUsers();
         if (users.length === 0) {
             setIsLogin(false);
-            setInfo('This appears to be the first time setup. Create your admin account by providing the secret Admin Code.');
+            setInfo(t('auth.firstTimeSetup'));
         }
     };
     checkFirstTimeSetup();
-  }, []);
+  }, [t]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,12 +43,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
         if (foundUser) {
             onLogin(foundUser);
         } else {
-            setError('Invalid username or password.');
+            setError(t('auth.invalidCredentials'));
         }
         } else {
         // Handle Sign Up
         if (users.some(u => u.username === username)) {
-            setError('Username already exists.');
+            setError(t('auth.usernameExists'));
             return;
         }
         
@@ -63,7 +65,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
         };
         
         if (newUser.role === 'viewer' && adminCode) {
-            setError('Incorrect Admin Code. Registered as a viewer.');
+            setError(t('auth.incorrectAdminCode'));
         }
 
         const updatedUsers = [...users, newUser];
@@ -72,7 +74,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
         }
     } catch (e) {
         console.error("Auth error:", e);
-        setError("An unexpected error occurred during authentication.");
+        setError(t('auth.errors.generic'));
     } finally {
         setIsLoading(false);
     }
@@ -111,7 +113,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                         className="text-2xl font-semibold text-white" 
                         style={{ fontFamily: "'Cinzel Decorative', serif" }}
                     >
-                        {isLogin ? 'Welcome Back' : 'Create an Account'}
+                        {isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}
                     </h2>
             </div>
             
@@ -121,7 +123,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                     <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="username">
-                        Username
+                        {t('auth.username')}
                     </label>
                     <input
                         id="username"
@@ -130,12 +132,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                         onChange={(e) => setUsername(e.target.value)}
                         required
                         className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition placeholder:text-slate-500"
-                        placeholder="e.g., elara_storm"
+                        placeholder={t('auth.placeholders.username')}
                     />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="password">
-                        Password
+                        {t('auth.password')}
                     </label>
                     <input
                         id="password"
@@ -150,7 +152,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                 {!isLogin && (
                     <div>
                         <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="adminCode">
-                            Admin Code (Optional)
+                            {t('auth.adminCode')}
                         </label>
                         <input
                             id="adminCode"
@@ -158,7 +160,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                             value={adminCode}
                             onChange={(e) => setAdminCode(e.target.value)}
                             className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition"
-                            placeholder="Enter secret code for admin access"
+                            placeholder={t('auth.adminCodePlaceholder')}
                         />
                     </div>
                 )}
@@ -167,14 +169,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                     disabled={isLoading}
                     className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30 disabled:bg-slate-600 disabled:cursor-not-allowed"
                 >
-                    {isLoading ? 'Processing...' : (isLogin ? 'Log In' : 'Sign Up')}
+                    {isLoading ? t('auth.processing') : (isLogin ? t('auth.loginButton') : t('auth.signupButton'))}
                 </button>
             </form>
 
             <p className="text-center text-sm text-text-secondary mt-6">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}
+                {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
                 <button onClick={handleToggleMode} className="font-semibold text-accent hover:text-sky-300 ml-2">
-                    {isLogin ? 'Sign Up' : 'Log In'}
+                    {isLogin ? t('auth.signupButton') : t('auth.loginButton')}
                 </button>
             </p>
           </div>

@@ -1,0 +1,221 @@
+{
+  "header": {
+    "titleHome": "Home",
+    "titleProfile": "User Profile",
+    "titleCharacters": "Characters: {characterType}",
+    "logout": "Logout"
+  },
+  "sidebar": {
+    "profile": "Profile",
+    "home": "Home",
+    "characters": "Characters",
+    "adminControls": "Admin Controls",
+    "uploadLoginBanner": "Upload Login Banner",
+    "shareAndBackup": "Share & Backup",
+    "copyShareLink": "Copy Share Link",
+    "generating": "Generating...",
+    "copied": "Copied!",
+    "error": "Error!",
+    "downloadFile": "Download File",
+    "uploadFile": "Upload File",
+    "uploadLogo": "Upload Logo",
+    "changeLogo": "Change logo",
+    "prompts": {
+      "importConfirm": "Are you sure you want to import this data? This will overwrite all existing data in the application."
+    },
+    "alerts": {
+      "importSuccess": "Import successful! The application will now reload.",
+      "importError": "An error occurred during import. The file may be invalid. See console for details.",
+      "shareLinkErrorFallback": "An unknown error occurred while generating the link."
+    },
+    "characterTypes": {
+      "mainProtagonist": "Main Protagonist",
+      "allies": "Allies",
+      "enemies": "Enemies"
+    },
+    "aria": {
+      "generateShareLink": "Generate and copy a shareable link",
+      "downloadData": "Download all application data as a file",
+      "importData": "Import application data from a file"
+    }
+  },
+  "auth": {
+    "welcomeBack": "Welcome Back",
+    "createAccount": "Create an Account",
+    "username": "Username",
+    "password": "Password",
+    "adminCode": "Admin Code (Optional)",
+    "adminCodePlaceholder": "Enter secret code for admin access",
+    "loginButton": "Log In",
+    "signupButton": "Sign Up",
+    "processing": "Processing...",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "invalidCredentials": "Invalid username or password.",
+    "usernameExists": "Username already exists.",
+    "firstTimeSetup": "This appears to be the first time setup. Create your admin account by providing the secret Admin Code.",
+    "incorrectAdminCode": "Incorrect Admin Code. Registered as a viewer.",
+    "errors": {
+      "generic": "An unexpected error occurred during authentication."
+    },
+    "placeholders": {
+      "username": "e.g., elara_storm"
+    }
+  },
+  "home": {
+    "synopsis": "Synopsis",
+    "editSynopsis": "Edit Synopsis",
+    "saveSynopsis": "Save Synopsis",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "defaultSynopsis": "This is where your novel's synopsis will appear. Click the 'Edit Synopsis' button above to start writing!",
+    "aria": {
+      "synopsisEditor": "Synopsis editor"
+    },
+    "errors": {
+      "bannerProcessing": "There was an error processing the banner image. It may be an unsupported format.",
+      "saveSynopsisQuota": "Could not save synopsis. The application storage is full.",
+      "saveSynopsisGeneric": "An error occurred while saving the synopsis."
+    }
+  },
+  "characters": {
+    "allArcs": "All Arcs",
+    "addCharacter": "Add Character",
+    "backTo": "Back to {characterType}",
+    "noCharactersForArc": "No characters found for the arc \"{arcName}\".",
+    "noCharactersYet": "No characters created yet. {cta}",
+    "adminCta": "Click \"Add Character\" to begin.",
+    "viewDetailsFor": "View details for {characterName}",
+    "aria": {
+      "filterByArc": "Filter characters by arc"
+    },
+    "newCharacter": {
+      "name": "New Character",
+      "unknown": "Unknown",
+      "about": "A brief summary of the character.",
+      "biography": "The life story of the character.",
+      "personality": "Details about their traits and behavior.",
+      "appearanceDescription": "A textual description of how they look.",
+      "powers": "Abilities and skills.",
+      "relationships": "Connections to other characters.",
+      "trivia": "Interesting facts and notes.",
+      "defaultPortraitName": "Default Portrait",
+      "defaultArcName": "Default"
+    },
+    "errors": {
+      "saveQuota": "Could not save changes. The application storage is full. Please remove some data (e.g., gallery images) and try again.",
+      "saveGeneric": "An unknown error occurred while saving. Your changes may not be persisted."
+    }
+  },
+  "characterCard": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "editBackground": "Edit Background",
+    "editDetails": "Edit Details",
+    "deleteCharacter": "Delete Character",
+    "portrait": "Portrait",
+    "outfit": "Outfit",
+    "editPortraits": "Edit Portraits",
+    "portraitName": "Portrait Name",
+    "addPortrait": "+ Add Portrait",
+    "atLeastOnePortrait": "A character must have at least one portrait.",
+    "editOutfitsFor": "Edit Outfits for \"{portraitName}\"",
+    "arcName": "Arc Name",
+    "addOutfit": "+ Add Outfit",
+    "atLeastOneOutfit": "A portrait must have at least one outfit.",
+    "status": "Status",
+    "birthplace": "Birthplace",
+    "age": "Age",
+    "height": "Height",
+    "weight": "Weight",
+    "bloodType": "Blood Type",
+    "associatedArcs": "Associated Arcs",
+    "arcsPlaceholder": "e.g., The Beginning, The War, Aftermath",
+    "arcsHelpText": "Separate arc names with a comma.",
+    "about": "About",
+    "biography": "Biography",
+    "personality": "Personality",
+    "appearance": "Appearance",
+    "powers": "Powers & Abilities",
+    "relationships": "Relationships",
+    "stats": "Stats",
+    "radar": "Radar",
+    "bar": "Bar",
+    "trivia": "Trivia",
+    "gallery": "Gallery",
+    "caption": "Caption",
+    "addGalleryImage": "+ Add Gallery Image",
+    "noGalleryImages": "No images in the gallery yet.",
+    "deleteConfirm": "Are you sure you want to delete this character? This action cannot be undone.",
+    "statsShort": {
+      "strength": "STR",
+      "dexterity": "DEX",
+      "constitution": "CON",
+      "intelligence": "INT",
+      "wisdom": "WIS",
+      "charisma": "CHA"
+    },
+    "statusOptions": {
+      "alive": "Alive",
+      "deceased": "Deceased",
+      "unknown": "Unknown"
+    },
+    "placeholders": {
+      "details": "Enter details here..."
+    },
+    "noInformation": "No information provided.",
+    "newPortraitName": "New Portrait",
+    "newArcName": "New Arc"
+  },
+  "profile": {
+    "profileTitle": "{username}'s Profile",
+    "editProfile": "Edit Profile",
+    "save": "Save",
+    "cancel": "Cancel",
+    "changeAvatar": "Change avatar",
+    "userAvatar": "User avatar",
+    "bio": "Bio",
+    "bioPlaceholder": "Tell us a little about yourself...",
+    "noBio": "No bio provided.",
+    "errors": {
+      "avatarProcessing": "There was an error processing the avatar image.",
+      "saveQuota": "Could not save profile. The application storage is full.",
+      "saveGeneric": "An error occurred while saving the profile."
+    }
+  },
+  "importModal": {
+    "title": "Shared World Detected",
+    "body": "Do you want to load this world?",
+    "warning": "Warning: This will overwrite all of your current data.",
+    "loadButton": "Load World",
+    "dismissButton": "Dismiss",
+    "loading": "Loading World...",
+    "successTitle": "Success!",
+    "successBody": "The shared world has been loaded. The application will now reload to apply the changes.",
+    "errorTitle": "Import Failed",
+    "errorBody": "The link might be corrupted or invalid."
+  },
+  "viewHeader": {
+    "uploadBanner": "Upload Banner Image",
+    "bannerSize": "Recommended size: 767x325"
+  },
+  "languages": {
+    "en": "English",
+    "es": "Español",
+    "fr": "Français",
+    "de": "Deutsch",
+    "id": "Bahasa Indonesia"
+  },
+  "languageSwitcher": {
+    "aria": {
+      "changeLanguage": "Change language"
+    }
+  },
+  "app": {
+    "errors": {
+      "logoProcessing": "There was an error processing the logo image. It may be an unsupported format.",
+      "authBannerProcessing": "There was an error processing the auth banner image. It may be an unsupported format.",
+      "importFailed": "Could not load the shared world. The link might be corrupted, expired, or invalid."
+    }
+  }
+}

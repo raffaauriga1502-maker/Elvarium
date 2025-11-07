@@ -164,6 +164,45 @@ export const saveCharacters = (characterType: CharacterType, characters: Charact
     return setItem(getCharacterKey(characterType), characters);
 };
 
+export const removeCharacters = (characterType: CharacterType): Promise<void> => {
+    return removeItem(getCharacterKey(characterType));
+};
+
+
+export const getAllArcs = async (): Promise<string[]> => {
+    const allArcs = new Set<string>();
+    // Use old full list to ensure all data is scanned, even before migration
+    const characterTypes: CharacterType[] = ['Main Protagonist', 'Allies', 'Main Antagonist', 'Enemies']; 
+
+    for (const type of characterTypes) {
+        const characters = await getCharacters(type);
+        if (characters) {
+            for (const char of characters) {
+                // New structure
+                if (char.portraits) {
+                    char.portraits.forEach(p => {
+                        p.outfits.forEach(o => allArcs.add(o.arcName));
+                    });
+                }
+                if (char.arcs) {
+                    char.arcs.forEach(arc => allArcs.add(arc));
+                }
+                
+                // Legacy structures for migration-proofing
+                const legacyChar = char as any;
+                if (legacyChar.outfits) { // Old outfit structure
+                    legacyChar.outfits.forEach((o: any) => o.arcName && allArcs.add(o.arcName));
+                }
+                if (legacyChar.appearances) { // Even older "appearance" structure
+                    legacyChar.appearances.forEach((a: any) => a.arcName && allArcs.add(a.arcName));
+                }
+            }
+        }
+    }
+    return Array.from(allArcs).filter(Boolean).sort(); // filter out empty strings
+};
+
+
 // --- Export / Import / Share ---
 
 const dataUrlToBlob = (dataUrl: string): Blob => {

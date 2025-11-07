@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Character } from '../types';
 import * as apiService from '../services/apiService';
+import { useI18n } from '../contexts/I18nContext';
 
 interface CharacterAvatarProps {
   character?: Character;
@@ -10,7 +11,10 @@ interface CharacterAvatarProps {
 
 const useResolvedAvatarUrl = (character?: Character) => {
     const [url, setUrl] = useState<string | null>(null);
-    const avatarKey = character?.portraitImageUrl;
+    // FIX: The 'portraitImageUrl' property is legacy. The new structure uses a 'portraits' array
+    // with nested outfits. We now prioritize the main portrait's image, falling back to the
+    // first outfit's image only if the main one is not set.
+    const avatarKey = character?.portraits?.[0]?.imageUrl || character?.portraits?.[0]?.outfits?.[0]?.imageUrl;
 
     useEffect(() => {
         let isCancelled = false;
@@ -25,9 +29,8 @@ const useResolvedAvatarUrl = (character?: Character) => {
         }
         return () => {
             isCancelled = true;
-            if (url && url.startsWith('blob:')) {
-                URL.revokeObjectURL(url);
-            }
+            // NOTE: URL.revokeObjectURL(url) was removed to prevent images disappearing
+            // during component updates elsewhere in the app. The browser will handle memory management.
         };
     }, [avatarKey]);
 
@@ -37,6 +40,7 @@ const useResolvedAvatarUrl = (character?: Character) => {
 
 const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading = false, onClick }) => {
   const resolvedAvatarUrl = useResolvedAvatarUrl(character);
+  const { t } = useI18n();
   
   if (isLoading) {
     return (
@@ -50,7 +54,7 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
     <button
       onClick={onClick}
       className="group transition-transform transform hover:scale-105"
-      aria-label={`View details for ${character.name}`}
+      aria-label={t('characters.viewDetailsFor', { characterName: character.name })}
     >
       <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden border-4 border-secondary group-hover:border-accent transition-colors duration-300 shadow-lg">
         {resolvedAvatarUrl ? (

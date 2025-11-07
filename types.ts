@@ -13,6 +13,13 @@ export interface Outfit {
   imageUrl: string;
 }
 
+export interface Portrait {
+  id: string;
+  name: string;
+  imageUrl: string;
+  outfits: Outfit[];
+}
+
 export interface GalleryImage {
   id: string;
   caption: string;
@@ -45,8 +52,8 @@ export interface Character {
   relationships: string;
   trivia: string;
   
-  portraitImageUrl?: string;
-  outfits: Outfit[];
+  portraits: Portrait[];
+  arcs: string[];
   gallery: GalleryImage[];
   backgroundImageUrl?: string;
   stats: {

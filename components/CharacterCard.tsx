@@ -1,12 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-// FIX: Changed import from 'Appearance' to 'Outfit' to match the updated types. Corrected import paths.
-import { Character, Outfit, GalleryImage, User } from '../types';
+import { Character, Portrait, Outfit, GalleryImage, User } from '../types';
 import RadarChart from './RadarChart';
 import BarChart from './BarChart';
 import ImageModal from './ImageModal';
-import { generateCharacterDetail, generateCharacterImage } from '../services/geminiService';
 import * as apiService from '../services/apiService';
 import * as idbService from '../services/idbService';
+import { useI18n } from '../contexts/I18nContext';
 
 
 interface CharacterCardProps {
@@ -14,6 +13,7 @@ interface CharacterCardProps {
   onUpdate: (character: Character) => void;
   onDelete: (id: string) => void;
   userRole: User['role'];
+  isNewlyAdded?: boolean;
 }
 
 const STAT_KEYS: (keyof Character['stats'])[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
@@ -34,9 +34,7 @@ const useResolvedImageUrl = (imageKey?: string | null) => {
         }
         return () => {
             isCancelled = true;
-            if (imageUrl && imageUrl.startsWith('blob:')) {
-                URL.revokeObjectURL(imageUrl);
-            }
+            // The browser will handle cleanup on page unload.
         };
     }, [imageKey]);
     return imageUrl;
@@ -50,6 +48,7 @@ const EditableInfoBlock: React.FC<{
     name: keyof Pick<Character, 'birthplace' | 'age' | 'height' | 'weight' | 'bloodType' | 'status'>;
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 }> = ({ title, content, isEditing, name, onChange }) => {
+    const { t } = useI18n();
     return (
         <div className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg">
             <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{title}</h4>
@@ -61,9 +60,9 @@ const EditableInfoBlock: React.FC<{
                         onChange={onChange}
                         className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"
                     >
-                        <option value="Alive">Alive</option>
-                        <option value="Deceased">Deceased</option>
-                        <option value="Unknown">Unknown</option>
+                        <option value={t('characterCard.statusOptions.alive')}>{t('characterCard.statusOptions.alive')}</option>
+                        <option value={t('characterCard.statusOptions.deceased')}>{t('characterCard.statusOptions.deceased')}</option>
+                        <option value={t('characterCard.statusOptions.unknown')}>{t('characterCard.statusOptions.unknown')}</option>
                     </select>
                 ) : (
                     <input
@@ -75,54 +74,24 @@ const EditableInfoBlock: React.FC<{
                     />
                 )
             ) : (
-                <p className={`text-text-primary whitespace-pre-wrap min-h-[1.5rem] ${content === 'Deceased' ? 'text-red-400 font-semibold' : ''}`}>{content}</p>
+                <p className={`text-text-primary whitespace-pre-wrap min-h-[1.5rem] ${content === t('characterCard.statusOptions.deceased') ? 'text-red-400 font-semibold' : ''}`}>{content}</p>
             )}
         </div>
     );
 };
 
-const SparkleIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
-        <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 3zM10 15a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 0110 15zM4.134 5.866a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zM13.745 14.806a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zM5.866 13.745a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 01-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zM14.806 4.134a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 01-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zM3 10a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 013 10zm12 0a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5A.75.75 0 0115 10zM10 6.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" clipRule="evenodd" />
-    </svg>
-);
-
-const EditableSection: React.FC<{ 
+const SimpleEditableSection: React.FC<{ 
     title: string; 
     content: string; 
     isEditing: boolean;
     name: keyof Pick<Character, 'about' | 'biography' | 'personality' | 'appearanceDescription' | 'powers' | 'relationships' | 'trivia'>;
     onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-    onGenerate: () => void;
-    isGenerating: boolean;
-}> = ({ title, content, isEditing, name, onChange, onGenerate, isGenerating }) => {
+}> = ({ title, content, isEditing, name, onChange }) => {
+    const { t } = useI18n();
     return (
         <div>
             <div className="flex justify-between items-center mb-3 border-b-2 border-accent/30 pb-2">
                 <h3 className="text-2xl font-bold text-accent" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{title}</h3>
-                {isEditing && (
-                    <button 
-                        onClick={onGenerate}
-                        disabled={isGenerating}
-                        className="flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-md transition-colors bg-accent/20 text-accent hover:bg-accent/40 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed"
-                        aria-label={`Generate ${title} with AI`}
-                    >
-                        {isGenerating ? (
-                           <>
-                             <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                             </svg>
-                             Generating...
-                           </>
-                        ) : (
-                            <>
-                                <SparkleIcon className="h-4 w-4" />
-                                Generate
-                            </>
-                        )}
-                    </button>
-                )}
             </div>
             {isEditing ? (
                  <textarea
@@ -131,11 +100,11 @@ const EditableSection: React.FC<{
                     onChange={onChange}
                     rows={10}
                     className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"
-                    placeholder={isGenerating ? 'AI is generating content...' : 'Enter details here...'}
+                    placeholder={t('characterCard.placeholders.details')}
                 />
             ) : (
                 <div className="prose prose-invert max-w-none prose-p:text-text-primary whitespace-pre-wrap">
-                    {content ? content.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>) : <p className="text-text-secondary">No information provided.</p>}
+                    {content ? content.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>) : <p className="text-text-secondary">{t('characterCard.noInformation')}</p>}
                 </div>
             )}
         </div>
@@ -143,35 +112,50 @@ const EditableSection: React.FC<{
 };
 
 
-const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDelete, userRole }) => {
+const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDelete, userRole, isNewlyAdded = false }) => {
   const backgroundFileInputRef = useRef<HTMLInputElement>(null);
-  const portraitFileInputRef = useRef<HTMLInputElement>(null);
   const dossierContainerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedCharacter, setEditedCharacter] = useState<Character>(character);
   const [chartType, setChartType] = useState<'radar' | 'bar' | null>(null);
   const [modalImage, setModalImage] = useState<{src: string, alt: string} | null>(null);
-  const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0);
-  const [generatingSection, setGeneratingSection] = useState<string | null>(null);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-
+  const [selectedPortraitIndex, setSelectedPortraitIndex] = useState(0);
+  const [selectedOutfitIndex, setSelectedOutfitIndex] = useState<number | null>(null);
+  const { t } = useI18n();
+  const displayedCharacterId = useRef<string | null>(null);
+  
   const resolvedBgUrl = useResolvedImageUrl(editedCharacter.backgroundImageUrl);
-  const resolvedPortraitUrl = useResolvedImageUrl(editedCharacter.portraitImageUrl);
   
   useEffect(() => {
-    setEditedCharacter(character);
-    setChartType(null);
-    setSelectedOutfitIndex(0);
+    // This effect synchronizes the component's state with the `character` prop.
+    // It should ONLY run when the character prop changes to a different character.
+    if (character.id !== displayedCharacterId.current) {
+        displayedCharacterId.current = character.id;
 
-    if (character.name === 'New Character' && userRole === 'admin') {
-      setIsEditing(true);
-    } else {
-      setIsEditing(false);
+        // A new character has been selected from the list.
+        // Reset all local state to reflect the new character.
+        setEditedCharacter(character);
+        setChartType(null);
+        setSelectedPortraitIndex(0);
+        setSelectedOutfitIndex(null);
+
+        // Determine if this new character should start in edit mode.
+        setIsEditing(isNewlyAdded && userRole === 'admin');
     }
-  }, [character, userRole]);
+  }, [character, isNewlyAdded, userRole]);
 
-  const selectedOutfit = editedCharacter.outfits?.[selectedOutfitIndex];
-  const resolvedOutfitUrl = useResolvedImageUrl(selectedOutfit?.imageUrl);
+
+  // Derived state for easier access
+  const currentPortrait = editedCharacter.portraits?.[selectedPortraitIndex];
+  const currentOutfit = selectedOutfitIndex !== null ? currentPortrait?.outfits?.[selectedOutfitIndex] : null;
+  const resolvedOutfitUrl = useResolvedImageUrl(currentOutfit?.imageUrl);
+  const resolvedPortraitUrl = useResolvedImageUrl(currentPortrait?.imageUrl);
+  
+  const displayedImageUrl = (currentOutfit && resolvedOutfitUrl) ? resolvedOutfitUrl : resolvedPortraitUrl;
+  const displayedImageAlt = (currentOutfit && resolvedOutfitUrl) 
+    ? `${editedCharacter.name} - ${currentOutfit.arcName}` 
+    : `${editedCharacter.name} - ${currentPortrait?.name}`;
+
 
   const handleBackgroundFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -185,23 +169,14 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         }
     }
   };
-
-   const handlePortraitFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-        try {
-            const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 512, maxHeight: 512, quality: 0.8 });
-            setEditedCharacter(prev => ({ ...prev, portraitImageUrl: imageKey }));
-        } catch (error) {
-            console.error("Error processing portrait image:", error);
-            alert("There was an error processing the portrait image.");
-        }
-    }
-  };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setEditedCharacter(prev => ({ ...prev, [name]: value }));
+    if (name === 'arcs') {
+        setEditedCharacter(prev => ({...prev, arcs: value.split(',').map(s => s.trim()).filter(Boolean)}));
+    } else {
+        setEditedCharacter(prev => ({ ...prev, [name]: value }));
+    }
   };
   
   const handleStatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,57 +190,133 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         }));
   };
   
-  const handleOutfitChange = (id: string, field: 'arcName', value: string) => {
+  // --- Portrait Handlers ---
+  const handlePortraitChange = (index: number, field: 'name', value: string) => {
     setEditedCharacter(prev => ({
+      ...prev,
+      portraits: prev.portraits.map((p, i) => i === index ? { ...p, [field]: value } : p)
+    }));
+  };
+
+  const handlePortraitImageChange = async (index: number, file: File) => {
+    try {
+      const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 512, maxHeight: 512, quality: 0.8 });
+      setEditedCharacter(prev => ({
         ...prev,
-        outfits: prev.outfits.map(o => o.id === id ? { ...o, [field]: value } : o)
+        portraits: prev.portraits.map((p, i) => i === index ? { ...p, imageUrl: imageKey } : p)
+      }));
+    } catch (error) {
+      console.error("Error processing portrait image:", error);
+    }
+  };
+  
+  const handleAddPortrait = () => {
+    const newPortrait: Portrait = {
+      id: crypto.randomUUID(),
+      name: t('characterCard.newPortraitName'),
+      imageUrl: '',
+      outfits: [{ id: crypto.randomUUID(), arcName: t('characters.newCharacter.defaultArcName'), imageUrl: '' }],
+    };
+    setEditedCharacter(prev => ({
+      ...prev,
+      portraits: [...prev.portraits, newPortrait]
     }));
   };
   
-  const handleOutfitImageChange = async (id: string, file: File) => {
+  const handleDeletePortrait = (index: number) => {
+    if (editedCharacter.portraits.length <= 1) {
+      alert(t('characterCard.atLeastOnePortrait'));
+      return;
+    }
+    setEditedCharacter(prev => {
+      const newIndex = selectedPortraitIndex >= prev.portraits.length - 1 ? prev.portraits.length - 2 : selectedPortraitIndex;
+      setSelectedPortraitIndex(Math.max(0, newIndex));
+      setSelectedOutfitIndex(null);
+      return {
+        ...prev,
+        portraits: prev.portraits.filter((_, i) => i !== index)
+      };
+    });
+  };
+
+
+  // --- Outfit Handlers (now relative to current portrait) ---
+  const handleOutfitChange = (outfitId: string, field: 'arcName', value: string) => {
+    setEditedCharacter(prev => ({
+        ...prev,
+        portraits: prev.portraits.map((p, pIndex) => 
+          pIndex === selectedPortraitIndex
+            ? { ...p, outfits: p.outfits.map(o => o.id === outfitId ? { ...o, [field]: value } : o) }
+            : p
+        )
+    }));
+  };
+  
+  const handleOutfitImageChange = async (outfitId: string, file: File) => {
     try {
         const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 512, maxHeight: 512, quality: 0.8 });
         setEditedCharacter(prev => ({
             ...prev,
-            outfits: prev.outfits.map(o => o.id === id ? { ...o, imageUrl: imageKey } : o)
+            portraits: prev.portraits.map((p, pIndex) =>
+              pIndex === selectedPortraitIndex
+                ? { ...p, outfits: p.outfits.map(o => o.id === outfitId ? { ...o, imageUrl: imageKey } : o) }
+                : p
+            )
         }));
     } catch (error) {
         console.error("Error processing outfit image:", error);
-        alert("There was an error processing the outfit image.");
     }
   };
 
   const handleAddOutfit = () => {
       const newOutfit: Outfit = {
           id: crypto.randomUUID(),
-          arcName: 'New Arc',
+          arcName: t('characterCard.newArcName'),
           imageUrl: '',
       };
       setEditedCharacter(prev => ({
           ...prev,
-          outfits: [...prev.outfits, newOutfit]
+          portraits: prev.portraits.map((p, pIndex) =>
+            pIndex === selectedPortraitIndex
+              ? { ...p, outfits: [...p.outfits, newOutfit] }
+              : p
+          )
       }));
   };
   
-  const handleDeleteOutfit = (id: string) => {
-      if (editedCharacter.outfits.length <= 1) {
-          alert("A character must have at least one outfit.");
+  const handleDeleteOutfit = (outfitId: string) => {
+      if (!currentPortrait || currentPortrait.outfits.length <= 1) {
+          alert(t('characterCard.atLeastOneOutfit'));
           return;
       }
       setEditedCharacter(prev => {
-        const newIndex = selectedOutfitIndex >= prev.outfits.length - 1 ? prev.outfits.length - 2 : selectedOutfitIndex;
-        setSelectedOutfitIndex(Math.max(0, newIndex));
+        const portraitToUpdate = prev.portraits[selectedPortraitIndex];
+        const outfitIndexToDelete = portraitToUpdate.outfits.findIndex(o => o.id === outfitId);
+        
+        let newSelectedOutfitIndex = selectedOutfitIndex;
+        if (selectedOutfitIndex === outfitIndexToDelete) {
+            newSelectedOutfitIndex = null; // Deselect if deleting the active one
+        } else if (selectedOutfitIndex !== null && selectedOutfitIndex > outfitIndexToDelete) {
+            newSelectedOutfitIndex = selectedOutfitIndex - 1; // Adjust index down
+        }
+        setSelectedOutfitIndex(newSelectedOutfitIndex);
+
         return {
             ...prev,
-            outfits: prev.outfits.filter(o => o.id !== id)
+            portraits: prev.portraits.map((p, pIndex) =>
+              pIndex === selectedPortraitIndex
+                ? { ...p, outfits: p.outfits.filter(o => o.id !== outfitId) }
+                : p
+            )
         };
       });
   };
 
+  // --- Gallery Handlers ---
   const handleAddGalleryImage = () => {
     const newImage: GalleryImage = {
         id: crypto.randomUUID(),
-        caption: 'New Image',
+        caption: t('characterCard.newPortraitName'),
         imageUrl: '',
     };
     setEditedCharacter(prev => ({
@@ -290,7 +341,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         }));
     } catch (error) {
         console.error("Error processing gallery image:", error);
-        alert("There was an error processing the gallery image.");
     }
   };
 
@@ -311,49 +361,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
     setIsEditing(false);
   };
 
-  const handleGenerateDetail = async (
-    sectionName: keyof Pick<Character, 'about' | 'biography' | 'personality' | 'appearanceDescription' | 'powers' | 'relationships' | 'trivia'>
-  ) => {
-      setGeneratingSection(sectionName);
-      try {
-          const generatedText = await generateCharacterDetail(editedCharacter, sectionName);
-          setEditedCharacter(prev => ({
-              ...prev,
-              [sectionName]: generatedText,
-          }));
-      } catch (error) {
-          console.error(`Failed to generate ${sectionName}`, error);
-      } finally {
-          setGeneratingSection(null);
-      }
-  };
-
-  const handleGenerateOutfitImage = async () => {
-    if (!selectedOutfit) return;
-    setIsGeneratingImage(true);
-    try {
-        const base64Data = await generateCharacterImage(editedCharacter);
-        const fetchRes = await fetch(`data:image/png;base64,${base64Data}`);
-        const blob = await fetchRes.blob();
-        
-        const key = `idb://${crypto.randomUUID()}`;
-        await idbService.setImage(key, blob);
-
-        setEditedCharacter(prev => ({
-            ...prev,
-            outfits: prev.outfits.map((o, index) => 
-                index === selectedOutfitIndex ? { ...o, imageUrl: key } : o
-            )
-        }));
-    } catch (error) {
-        console.error("Image generation failed", error);
-        alert("Sorry, the AI couldn't generate an image. Please try again or check the console for errors.");
-    } finally {
-        setIsGeneratingImage(false);
-    }
-  };
-
-
   const backgroundStyle = resolvedBgUrl
     ? {
         backgroundImage: `
@@ -368,15 +375,15 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
       };
     
     const dossierSections: { id: string; label: string; name: keyof Character | 'appearance' | 'stats' | 'gallery' }[] = [
-        { id: 'about', label: 'About', name: 'about' },
-        { id: 'biography', label: 'Biography', name: 'biography' },
-        { id: 'personality', label: 'Personality', name: 'personality' },
-        { id: 'appearance', label: 'Appearance', name: 'appearanceDescription' },
-        { id: 'powers', label: 'Powers & Abilities', name: 'powers' },
-        { id: 'relationships', label: 'Relationships', name: 'relationships' },
-        { id: 'stats', label: 'Stats', name: 'stats' },
-        { id: 'trivia', label: 'Trivia', name: 'trivia' },
-        { id: 'gallery', label: 'Gallery', name: 'gallery' }
+        { id: 'about', label: t('characterCard.about'), name: 'about' },
+        { id: 'biography', label: t('characterCard.biography'), name: 'biography' },
+        { id: 'personality', label: t('characterCard.personality'), name: 'personality' },
+        { id: 'appearance', label: t('characterCard.appearance'), name: 'appearanceDescription' },
+        { id: 'powers', label: t('characterCard.powers'), name: 'powers' },
+        { id: 'relationships', label: t('characterCard.relationships'), name: 'relationships' },
+        { id: 'stats', label: t('characterCard.stats'), name: 'stats' },
+        { id: 'trivia', label: t('characterCard.trivia'), name: 'trivia' },
+        { id: 'gallery', label: t('characterCard.gallery'), name: 'gallery' }
     ];
 
     const scrollToSection = (id: string) => {
@@ -413,18 +420,18 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             <div className="absolute top-4 right-4 z-20 flex gap-2">
                 {isEditing ? (
                     <>
-                        <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-md transition-colors text-sm">Save</button>
-                        <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-1 px-3 rounded-md transition-colors text-sm">Cancel</button>
+                        <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-md transition-colors text-sm">{t('characterCard.save')}</button>
+                        <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-1 px-3 rounded-md transition-colors text-sm">{t('characterCard.cancel')}</button>
                     </>
                 ) : (
                     <>
-                        <button onClick={() => backgroundFileInputRef.current?.click()} className="bg-secondary/50 hover:bg-secondary text-text-primary p-2 rounded-full transition-colors backdrop-blur-sm" title="Edit Background">
+                        <button onClick={() => backgroundFileInputRef.current?.click()} className="bg-secondary/50 hover:bg-secondary text-text-primary p-2 rounded-full transition-colors backdrop-blur-sm" title={t('characterCard.editBackground')}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
                         </button>
-                        <button onClick={() => setIsEditing(true)} className="bg-secondary/50 hover:bg-secondary text-text-primary p-2 rounded-full transition-colors backdrop-blur-sm" title="Edit Details">
+                        <button onClick={() => setIsEditing(true)} className="bg-secondary/50 hover:bg-secondary text-text-primary p-2 rounded-full transition-colors backdrop-blur-sm" title={t('characterCard.editDetails')}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                         </button>
-                        <button onClick={() => onDelete(character.id)} className="bg-red-900/50 hover:bg-red-800 text-red-100 p-2 rounded-full transition-colors backdrop-blur-sm" title="Delete Character">
+                        <button onClick={() => onDelete(character.id)} className="bg-red-900/50 hover:bg-red-800 text-red-100 p-2 rounded-full transition-colors backdrop-blur-sm" title={t('characterCard.deleteCharacter')}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                         </button>
                     </>
@@ -434,119 +441,131 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
 
         {/* --- LEFT PANEL: ID CARD --- */}
         <div className="flex-shrink-0 w-full md:w-1/3 space-y-4">
+            {/* --- OUTFIT IMAGE --- */}
             <div className="relative w-full aspect-square max-w-sm mx-auto rounded-xl border-4 border-secondary/75 shadow-lg object-cover overflow-hidden bg-primary group">
-                <div onClick={() => !isEditing && resolvedOutfitUrl && setModalImage({ src: resolvedOutfitUrl, alt: editedCharacter.name })} className={`${!isEditing && resolvedOutfitUrl ? 'cursor-pointer' : ''}`}>
-                    {resolvedOutfitUrl ? (
-                        <img src={resolvedOutfitUrl} alt={editedCharacter.name} className="w-full h-full object-cover"/>
+                <div onClick={() => !isEditing && displayedImageUrl && setModalImage({ src: displayedImageUrl, alt: displayedImageAlt })} className={`${!isEditing && displayedImageUrl ? 'cursor-pointer' : ''}`}>
+                    {displayedImageUrl ? (
+                        <img src={displayedImageUrl} alt={displayedImageAlt} className="w-full h-full object-cover"/>
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg></div>
                     )}
                 </div>
-                 {isEditing && canEdit && (
-                    <div className="absolute bottom-2 right-2 z-10">
-                        <button 
-                            onClick={handleGenerateOutfitImage}
-                            disabled={isGeneratingImage}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-md transition-colors bg-accent/80 backdrop-blur-sm text-white hover:bg-accent disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed shadow-lg"
-                            aria-label="Generate Character Outfit with AI"
-                            title="Generate with AI"
-                        >
-                            {isGeneratingImage ? (
-                            <>
-                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span>Generating...</span>
-                            </>
-                            ) : (
-                                <>
-                                    <SparkleIcon className="h-4 w-4" />
-                                    <span>Generate</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
-                )}
-                {isGeneratingImage && (
-                    <div className="absolute inset-0 bg-primary/80 backdrop-blur-sm flex flex-col items-center justify-center text-accent z-20">
-                        <svg className="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <p className="mt-4 text-lg font-semibold text-white animate-pulse">Conjuring visual form...</p>
-                    </div>
-                )}
             </div>
             
-            {!isEditing && editedCharacter.outfits.length > 1 && (
-                <div className="flex flex-wrap justify-center gap-2 px-2">
-                    {editedCharacter.outfits.map((outfit, index) => (
-                        <button
-                            key={outfit.id}
-                            onClick={() => setSelectedOutfitIndex(index)}
-                            aria-label={`Switch to ${outfit.arcName} outfit`}
-                            className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
-                                selectedOutfitIndex === index 
-                                    ? 'bg-accent text-white shadow-md' 
-                                    : 'bg-secondary/70 text-text-secondary hover:bg-secondary hover:text-text-primary'
-                            }`}
-                        >
-                            {outfit.arcName}
-                        </button>
-                    ))}
-                </div>
-            )}
-            
-            {isEditing && (
-                <div className="space-y-3 p-3 bg-primary/60 rounded-lg max-h-60 overflow-y-auto">
-                    <h4 className="text-lg font-semibold text-accent mb-2 text-center">Edit Outfits</h4>
-                    {editedCharacter.outfits.map((outfit) => {
-                        const fileInputId = `outfit-file-${outfit.id}`;
-                        return (
-                             <div key={outfit.id} className="flex items-center gap-3 bg-secondary/50 p-2 rounded-lg">
-                                <div className="relative w-14 h-14 rounded-md overflow-hidden bg-primary flex-shrink-0 group">
-                                    <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleOutfitImageChange(outfit.id, e.target.files[0])}/>
-                                    <ResolvedImageDisplay imageKey={outfit.imageUrl} alt={outfit.arcName} defaultIconSize="h-6 w-6" />
-                                    <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
-                                    </label>
-                                </div>
-                                <div className="flex-grow">
-                                    <label className="text-xs text-text-secondary">Arc Name</label>
-                                    <input type="text" value={outfit.arcName} onChange={(e) => handleOutfitChange(outfit.id, 'arcName', e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-sm text-text-primary focus:ring-accent focus:border-accent transition"/>
-                                </div>
-                                <button onClick={() => handleDeleteOutfit(outfit.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors self-end">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
-                                </button>
-                            </div>
-                        )
-                    })}
-                    <button onClick={handleAddOutfit} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors mt-2">
-                        + Add Outfit
-                    </button>
-                </div>
-            )}
-
-            <div className="flex flex-col items-center gap-3 mt-4">
-                <h4 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Portrait</h4>
-                {canEdit && isEditing && <input type="file" ref={portraitFileInputRef} onChange={handlePortraitFileChange} accept="image/*" className="hidden" />}
-                <div className={`relative w-24 h-24 rounded-full bg-primary border-4 border-secondary/75 overflow-hidden ${canEdit && isEditing ? 'group cursor-pointer' : ''}`}
-                     onClick={() => canEdit && isEditing && portraitFileInputRef.current?.click()}
-                >
-                    <ResolvedImageDisplay imageKey={editedCharacter.portraitImageUrl} alt={`${editedCharacter.name} Portrait`} defaultIconSize="h-12 w-12" />
-                     {canEdit && isEditing && (
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 flex items-center justify-center transition-opacity">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
-                        </div>
-                    )}
-                </div>
-                <div className="text-3xl font-bold text-white break-words text-center" style={{ fontFamily: "'Cinzel Decorative', serif", textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+            {/* --- PORTRAIT & OUTFIT SELECTORS --- */}
+             <div className="flex flex-col items-center gap-3">
+                 <div className="text-3xl font-bold text-white break-words text-center" style={{ fontFamily: "'Cinzel Decorative', serif", textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
                     {isEditing ? (
                         <input type="text" name="name" value={editedCharacter.name} onChange={handleInputChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center text-3xl" style={{ fontFamily: "'Cinzel Decorative', serif"}} />
                     ) : (<h3>{editedCharacter.name}</h3>)}
                 </div>
+                 <div className="w-full p-3 bg-primary/60 rounded-lg space-y-2">
+                    <h4 className="text-center font-semibold text-accent/80 text-sm uppercase tracking-wider">{t('characterCard.portrait')}</h4>
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {editedCharacter.portraits.map((portrait, index) => (
+                             <button
+                                key={portrait.id}
+                                onClick={() => { setSelectedPortraitIndex(index); setSelectedOutfitIndex(null); }}
+                                aria-label={`Switch to ${portrait.name} portrait`}
+                                className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                                    selectedPortraitIndex === index 
+                                        ? 'bg-accent text-white shadow-md' 
+                                        : 'bg-secondary/70 text-text-secondary hover:bg-secondary hover:text-text-primary'
+                                }`}
+                            >
+                                {portrait.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {currentPortrait && (
+                     <div className="w-full p-3 bg-primary/60 rounded-lg space-y-2">
+                        <h4 className="text-center font-semibold text-accent/80 text-sm uppercase tracking-wider">{t('characterCard.outfit')}</h4>
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {currentPortrait.outfits.map((outfit, index) => (
+                                <button
+                                    key={outfit.id}
+                                    onClick={() => setSelectedOutfitIndex(prev => prev === index ? null : index)}
+                                    aria-label={`Switch to ${outfit.arcName} outfit`}
+                                    className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                                        selectedOutfitIndex === index 
+                                            ? 'bg-accent text-white shadow-md' 
+                                            : 'bg-secondary/70 text-text-secondary hover:bg-secondary hover:text-text-primary'
+                                    }`}
+                                >
+                                    {outfit.arcName}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* --- EDITING UI FOR PORTRAITS & OUTFITS --- */}
+            {isEditing && (
+                <div className="space-y-4">
+                    {/* Portrait Editor */}
+                    <div className="space-y-3 p-3 bg-primary/60 rounded-lg max-h-60 overflow-y-auto">
+                        <h4 className="text-lg font-semibold text-accent mb-2 text-center">{t('characterCard.editPortraits')}</h4>
+                        {editedCharacter.portraits.map((portrait, index) => {
+                            const fileInputId = `portrait-file-${portrait.id}`;
+                            return (
+                                <div key={portrait.id} className="flex items-center gap-3 bg-secondary/50 p-2 rounded-lg">
+                                    <div className="relative w-14 h-14 rounded-md overflow-hidden bg-primary flex-shrink-0 group">
+                                        <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePortraitImageChange(index, e.target.files[0])}/>
+                                        <ResolvedImageDisplay imageKey={portrait.imageUrl} alt={portrait.name} defaultIconSize="h-6 w-6" />
+                                        <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                                        </label>
+                                    </div>
+                                    <div className="flex-grow">
+                                        <label className="text-xs text-text-secondary">{t('characterCard.portraitName')}</label>
+                                        <input type="text" value={portrait.name} onChange={(e) => handlePortraitChange(index, 'name', e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-sm text-text-primary focus:ring-accent focus:border-accent transition"/>
+                                    </div>
+                                    <button onClick={() => handleDeletePortrait(index)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors self-end">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                                    </button>
+                                </div>
+                            )
+                        })}
+                        <button onClick={handleAddPortrait} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors mt-2">
+                            {t('characterCard.addPortrait')}
+                        </button>
+                    </div>
+
+                    {/* Outfit Editor for selected portrait */}
+                    {currentPortrait && (
+                       <div className="space-y-3 p-3 bg-primary/60 rounded-lg max-h-60 overflow-y-auto">
+                        <h4 className="text-lg font-semibold text-accent mb-2 text-center">{t('characterCard.editOutfitsFor', { portraitName: currentPortrait.name })}</h4>
+                        {currentPortrait.outfits.map((outfit) => {
+                            const fileInputId = `outfit-file-${outfit.id}`;
+                            return (
+                                <div key={outfit.id} className="flex items-center gap-3 bg-secondary/50 p-2 rounded-lg">
+                                    <div className="relative w-14 h-14 rounded-md overflow-hidden bg-primary flex-shrink-0 group">
+                                        <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleOutfitImageChange(outfit.id, e.target.files[0])}/>
+                                        <ResolvedImageDisplay imageKey={outfit.imageUrl} alt={outfit.arcName} defaultIconSize="h-6 w-6" />
+                                        <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                                        </label>
+                                    </div>
+                                    <div className="flex-grow">
+                                        <label className="text-xs text-text-secondary">{t('characterCard.arcName')}</label>
+                                        <input type="text" value={outfit.arcName} onChange={(e) => handleOutfitChange(outfit.id, 'arcName', e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-sm text-text-primary focus:ring-accent focus:border-accent transition"/>
+                                    </div>
+                                    <button onClick={() => handleDeleteOutfit(outfit.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors self-end">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                                    </button>
+                                </div>
+                            )
+                        })}
+                        <button onClick={handleAddOutfit} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors mt-2">
+                            {t('characterCard.addOutfit')}
+                        </button>
+                    </div>
+                    )}
+                </div>
+            )}
         </div>
         
         {/* --- RIGHT PANEL: DOSSIER --- */}
@@ -566,27 +585,41 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             <div ref={dossierContainerRef} className="bg-primary/50 backdrop-blur-sm p-4 rounded-b-lg overflow-y-auto flex-grow h-[65vh] md:h-auto scroll-pt-4">
                 <section id="dossier-about" className="mb-8">
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                        <EditableInfoBlock title="Status" content={editedCharacter.status} name="status" isEditing={isEditing} onChange={handleInputChange}/>
-                        <EditableInfoBlock title="Birthplace" content={editedCharacter.birthplace} name="birthplace" isEditing={isEditing} onChange={handleInputChange}/>
-                        <EditableInfoBlock title="Age" content={editedCharacter.age} name="age" isEditing={isEditing} onChange={handleInputChange}/>
-                        <EditableInfoBlock title="Height" content={editedCharacter.height} name="height" isEditing={isEditing} onChange={handleInputChange}/>
-                        <EditableInfoBlock title="Weight" content={editedCharacter.weight} name="weight" isEditing={isEditing} onChange={handleInputChange}/>
-                        <EditableInfoBlock title="Blood Type" content={editedCharacter.bloodType} name="bloodType" isEditing={isEditing} onChange={handleInputChange}/>
+                        <EditableInfoBlock title={t('characterCard.status')} content={editedCharacter.status} name="status" isEditing={isEditing} onChange={handleInputChange}/>
+                        <EditableInfoBlock title={t('characterCard.birthplace')} content={editedCharacter.birthplace} name="birthplace" isEditing={isEditing} onChange={handleInputChange}/>
+                        <EditableInfoBlock title={t('characterCard.age')} content={editedCharacter.age} name="age" isEditing={isEditing} onChange={handleInputChange}/>
+                        <EditableInfoBlock title={t('characterCard.height')} content={editedCharacter.height} name="height" isEditing={isEditing} onChange={handleInputChange}/>
+                        <EditableInfoBlock title={t('characterCard.weight')} content={editedCharacter.weight} name="weight" isEditing={isEditing} onChange={handleInputChange}/>
+                        <EditableInfoBlock title={t('characterCard.bloodType')} content={editedCharacter.bloodType} name="bloodType" isEditing={isEditing} onChange={handleInputChange}/>
                     </div>
-                    <EditableSection title="About" content={editedCharacter.about} name="about" isEditing={isEditing} onChange={handleInputChange} onGenerate={() => handleGenerateDetail('about')} isGenerating={generatingSection === 'about'}/>
+                    {isEditing && (
+                         <div className="p-3 rounded-lg bg-primary/60">
+                            <label className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1 block">{t('characterCard.associatedArcs')}</label>
+                             <input
+                                type="text"
+                                name="arcs"
+                                value={(editedCharacter.arcs || []).join(', ')}
+                                onChange={handleInputChange}
+                                className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"
+                                placeholder={t('characterCard.arcsPlaceholder')}
+                            />
+                            <p className="text-xs text-text-secondary mt-1">{t('characterCard.arcsHelpText')}</p>
+                        </div>
+                    )}
+                    <SimpleEditableSection title={t('characterCard.about')} content={editedCharacter.about} name="about" isEditing={isEditing} onChange={handleInputChange}/>
                 </section>
-                <section id="dossier-biography" className="mb-8"><EditableSection title="Biography" content={editedCharacter.biography} name="biography" isEditing={isEditing} onChange={handleInputChange} onGenerate={() => handleGenerateDetail('biography')} isGenerating={generatingSection === 'biography'}/></section>
-                <section id="dossier-personality" className="mb-8"><EditableSection title="Personality" content={editedCharacter.personality} name="personality" isEditing={isEditing} onChange={handleInputChange} onGenerate={() => handleGenerateDetail('personality')} isGenerating={generatingSection === 'personality'}/></section>
-                <section id="dossier-appearance" className="mb-8"><EditableSection title="Appearance" content={editedCharacter.appearanceDescription} name="appearanceDescription" isEditing={isEditing} onChange={handleInputChange} onGenerate={() => handleGenerateDetail('appearanceDescription')} isGenerating={generatingSection === 'appearanceDescription'}/></section>
-                <section id="dossier-powers" className="mb-8"><EditableSection title="Powers & Abilities" content={editedCharacter.powers} name="powers" isEditing={isEditing} onChange={handleInputChange} onGenerate={() => handleGenerateDetail('powers')} isGenerating={generatingSection === 'powers'}/></section>
-                <section id="dossier-relationships" className="mb-8"><EditableSection title="Relationships" content={editedCharacter.relationships} name="relationships" isEditing={isEditing} onChange={handleInputChange} onGenerate={() => handleGenerateDetail('relationships')} isGenerating={generatingSection === 'relationships'}/></section>
+                <section id="dossier-biography" className="mb-8"><SimpleEditableSection title={t('characterCard.biography')} content={editedCharacter.biography} name="biography" isEditing={isEditing} onChange={handleInputChange}/></section>
+                <section id="dossier-personality" className="mb-8"><SimpleEditableSection title={t('characterCard.personality')} content={editedCharacter.personality} name="personality" isEditing={isEditing} onChange={handleInputChange}/></section>
+                <section id="dossier-appearance" className="mb-8"><SimpleEditableSection title={t('characterCard.appearance')} content={editedCharacter.appearanceDescription} name="appearanceDescription" isEditing={isEditing} onChange={handleInputChange}/></section>
+                <section id="dossier-powers" className="mb-8"><SimpleEditableSection title={t('characterCard.powers')} content={editedCharacter.powers} name="powers" isEditing={isEditing} onChange={handleInputChange}/></section>
+                <section id="dossier-relationships" className="mb-8"><SimpleEditableSection title={t('characterCard.relationships')} content={editedCharacter.relationships} name="relationships" isEditing={isEditing} onChange={handleInputChange}/></section>
                 
                 <section id="dossier-stats" className="mb-8">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>Stats</h3>
+                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('characterCard.stats')}</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {STAT_KEYS.map(key => (
                             <div key={key} className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg text-center">
-                                <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{key.slice(0,3)}</h4>
+                                <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{t(`characterCard.statsShort.${key}`)}</h4>
                                 {isEditing ? (
                                     <input type="number" name={key} value={editedCharacter.stats[key]} onChange={handleStatChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center"/>
                                 ) : (
@@ -598,8 +631,8 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                      {!isEditing && (
                         <>
                             <div className="flex gap-2 justify-end my-4">
-                                <button onClick={() => setChartType(p => p === 'radar' ? null : 'radar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'radar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>Radar</button>
-                                <button onClick={() => setChartType(p => p === 'bar' ? null : 'bar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'bar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>Bar</button>
+                                <button onClick={() => setChartType(p => p === 'radar' ? null : 'radar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'radar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.radar')}</button>
+                                <button onClick={() => setChartType(p => p === 'bar' ? null : 'bar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'bar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.bar')}</button>
                             </div>
                             <div className={`grid transition-all duration-500 ease-in-out ${chartType ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                                 <div className="overflow-hidden min-h-0">
@@ -610,9 +643,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                         </>
                     )}
                 </section>
-                 <section id="dossier-trivia" className="mb-8"><EditableSection title="Trivia" content={editedCharacter.trivia} name="trivia" isEditing={isEditing} onChange={handleInputChange} onGenerate={() => handleGenerateDetail('trivia')} isGenerating={generatingSection === 'trivia'}/></section>
+                 <section id="dossier-trivia" className="mb-8"><SimpleEditableSection title={t('characterCard.trivia')} content={editedCharacter.trivia} name="trivia" isEditing={isEditing} onChange={handleInputChange}/></section>
                  <section id="dossier-gallery">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>Gallery</h3>
+                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('characterCard.gallery')}</h3>
                      {isEditing ? (
                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                            {(editedCharacter.gallery || []).map((image) => {
@@ -627,7 +660,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                            </label>
                                        </div>
                                        <div className="flex-grow">
-                                           <label className="text-xs text-text-secondary">Caption</label>
+                                           <label className="text-xs text-text-secondary">{t('characterCard.caption')}</label>
                                            <input type="text" value={image.caption} onChange={(e) => handleGalleryCaptionChange(image.id, e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"/>
                                        </div>
                                        <button onClick={() => handleDeleteGalleryImage(image.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors">
@@ -637,7 +670,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                )
                            })}
                            <button onClick={handleAddGalleryImage} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors">
-                               + Add Gallery Image
+                               {t('characterCard.addGalleryImage')}
                            </button>
                        </div>
                     ) : (
@@ -648,7 +681,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-text-secondary italic">No images in the gallery yet.</p>
+                            <p className="text-text-secondary italic">{t('characterCard.noGalleryImages')}</p>
                         )
                     )}
                 </section>

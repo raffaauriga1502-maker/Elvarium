@@ -1,0 +1,221 @@
+{
+  "header": {
+    "titleHome": "Inicio",
+    "titleProfile": "Perfil de Usuario",
+    "titleCharacters": "Personajes: {characterType}",
+    "logout": "Cerrar Sesión"
+  },
+  "sidebar": {
+    "profile": "Perfil",
+    "home": "Inicio",
+    "characters": "Personajes",
+    "adminControls": "Controles de Admin",
+    "uploadLoginBanner": "Subir Banner de Inicio",
+    "shareAndBackup": "Compartir y Respaldar",
+    "copyShareLink": "Copiar Enlace para Compartir",
+    "generating": "Generando...",
+    "copied": "¡Copiado!",
+    "error": "¡Error!",
+    "downloadFile": "Descargar Archivo",
+    "uploadFile": "Subir Archivo",
+    "uploadLogo": "Subir Logo",
+    "changeLogo": "Cambiar logo",
+    "prompts": {
+      "importConfirm": "¿Estás seguro de que quieres importar estos datos? Esto sobrescribirá todos los datos existentes en la aplicación."
+    },
+    "alerts": {
+      "importSuccess": "¡Importación exitosa! La aplicación se recargará ahora.",
+      "importError": "Ocurrió un error durante la importación. El archivo puede no ser válido. Revisa la consola para más detalles.",
+      "shareLinkErrorFallback": "Ocurrió un error desconocido al generar el enlace."
+    },
+    "characterTypes": {
+      "mainProtagonist": "Protagonista Principal",
+      "allies": "Aliados",
+      "enemies": "Enemigos"
+    },
+    "aria": {
+      "generateShareLink": "Generar y copiar un enlace para compartir",
+      "downloadData": "Descargar todos los datos de la aplicación como un archivo",
+      "importData": "Importar datos de la aplicación desde un archivo"
+    }
+  },
+  "auth": {
+    "welcomeBack": "Bienvenido de Nuevo",
+    "createAccount": "Crear una Cuenta",
+    "username": "Nombre de Usuario",
+    "password": "Contraseña",
+    "adminCode": "Código de Admin (Opcional)",
+    "adminCodePlaceholder": "Ingresa el código secreto para acceso de admin",
+    "loginButton": "Iniciar Sesión",
+    "signupButton": "Registrarse",
+    "processing": "Procesando...",
+    "noAccount": "¿No tienes una cuenta?",
+    "haveAccount": "¿Ya tienes una cuenta?",
+    "invalidCredentials": "Nombre de usuario o contraseña inválidos.",
+    "usernameExists": "El nombre de usuario ya existe.",
+    "firstTimeSetup": "Parece ser la primera configuración. Crea tu cuenta de administrador proporcionando el Código de Administrador secreto.",
+    "incorrectAdminCode": "Código de Administrador incorrecto. Registrado como espectador.",
+    "errors": {
+      "generic": "Ocurrió un error inesperado durante la autenticación."
+    },
+    "placeholders": {
+      "username": "ej., elara_tormenta"
+    }
+  },
+  "home": {
+    "synopsis": "Sinopsis",
+    "editSynopsis": "Editar Sinopsis",
+    "saveSynopsis": "Guardar Sinopsis",
+    "saving": "Guardando...",
+    "cancel": "Cancelar",
+    "defaultSynopsis": "Aquí aparecerá la sinopsis de tu novela. ¡Haz clic en el botón 'Editar Sinopsis' para empezar a escribir!",
+    "aria": {
+      "synopsisEditor": "Editor de sinopsis"
+    },
+    "errors": {
+      "bannerProcessing": "Hubo un error al procesar la imagen del banner. Puede ser un formato no compatible.",
+      "saveSynopsisQuota": "No se pudo guardar la sinopsis. El almacenamiento de la aplicación está lleno.",
+      "saveSynopsisGeneric": "Ocurrió un error al guardar la sinopsis."
+    }
+  },
+  "characters": {
+    "allArcs": "Todos los Arcos",
+    "addCharacter": "Añadir Personaje",
+    "backTo": "Volver a {characterType}",
+    "noCharactersForArc": "No se encontraron personajes para el arco \"{arcName}\".",
+    "noCharactersYet": "Aún no se han creado personajes. {cta}",
+    "adminCta": "Haz clic en \"Añadir Personaje\" para comenzar.",
+    "viewDetailsFor": "Ver detalles de {characterName}",
+    "aria": {
+      "filterByArc": "Filtrar personajes por arco"
+    },
+    "newCharacter": {
+      "name": "Nuevo Personaje",
+      "unknown": "Desconocido",
+      "about": "Un breve resumen del personaje.",
+      "biography": "La historia de vida del personaje.",
+      "personality": "Detalles sobre sus rasgos y comportamiento.",
+      "appearanceDescription": "Una descripción textual de su apariencia.",
+      "powers": "Habilidades y destrezas.",
+      "relationships": "Conexiones con otros personajes.",
+      "trivia": "Datos interesantes y notas.",
+      "defaultPortraitName": "Retrato por Defecto",
+      "defaultArcName": "Por Defecto"
+    },
+    "errors": {
+      "saveQuota": "No se pudieron guardar los cambios. El almacenamiento de la aplicación está lleno. Por favor, elimina algunos datos (ej., imágenes de la galería) e inténtalo de nuevo.",
+      "saveGeneric": "Ocurrió un error desconocido al guardar. Es posible que tus cambios no se hayan conservado."
+    }
+  },
+  "characterCard": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "editBackground": "Editar Fondo",
+    "editDetails": "Editar Detalles",
+    "deleteCharacter": "Eliminar Personaje",
+    "portrait": "Retrato",
+    "outfit": "Atuendo",
+    "editPortraits": "Editar Retratos",
+    "portraitName": "Nombre del Retrato",
+    "addPortrait": "+ Añadir Retrato",
+    "atLeastOnePortrait": "Un personaje debe tener al menos un retrato.",
+    "editOutfitsFor": "Editar Atuendos para \"{portraitName}\"",
+    "arcName": "Nombre del Arco",
+    "addOutfit": "+ Añadir Atuendo",
+    "atLeastOneOutfit": "Un retrato debe tener al menos un atuendo.",
+    "status": "Estado",
+    "birthplace": "Lugar de Nacimiento",
+    "age": "Edad",
+    "height": "Altura",
+    "weight": "Peso",
+    "bloodType": "Tipo de Sangre",
+    "associatedArcs": "Arcos Asociados",
+    "arcsPlaceholder": "ej., El Comienzo, La Guerra, Consecuencias",
+    "arcsHelpText": "Separa los nombres de los arcos con una coma.",
+    "about": "Acerca de",
+    "biography": "Biografía",
+    "personality": "Personalidad",
+    "appearance": "Apariencia",
+    "powers": "Poderes y Habilidades",
+    "relationships": "Relaciones",
+    "stats": "Estadísticas",
+    "radar": "Radar",
+    "bar": "Barras",
+    "trivia": "Trivia",
+    "gallery": "Galería",
+    "caption": "Leyenda",
+    "addGalleryImage": "+ Añadir Imagen a la Galería",
+    "noGalleryImages": "Aún no hay imágenes en la galería.",
+    "deleteConfirm": "¿Estás seguro de que quieres eliminar este personaje? Esta acción no se puede deshacer.",
+    "statsShort": {
+      "strength": "FUE",
+      "dexterity": "DES",
+      "constitution": "CON",
+      "intelligence": "INT",
+      "wisdom": "SAB",
+      "charisma": "CAR"
+    },
+    "statusOptions": {
+      "alive": "Vivo",
+      "deceased": "Fallecido",
+      "unknown": "Desconocido"
+    },
+    "placeholders": {
+      "details": "Introduce los detalles aquí..."
+    },
+    "noInformation": "No se ha proporcionado información.",
+    "newPortraitName": "Nuevo Retrato",
+    "newArcName": "Nuevo Arco"
+  },
+  "profile": {
+    "profileTitle": "Perfil de {username}",
+    "editProfile": "Editar Perfil",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "changeAvatar": "Cambiar avatar",
+    "userAvatar": "Avatar de usuario",
+    "bio": "Biografía",
+    "bioPlaceholder": "Cuéntanos un poco sobre ti...",
+    "noBio": "No se ha proporcionado biografía.",
+    "errors": {
+      "avatarProcessing": "Hubo un error al procesar la imagen del avatar.",
+      "saveQuota": "No se pudo guardar el perfil. El almacenamiento de la aplicación está lleno.",
+      "saveGeneric": "Ocurrió un error al guardar el perfil."
+    }
+  },
+  "importModal": {
+    "title": "Mundo Compartido Detectado",
+    "body": "¿Quieres cargar este mundo?",
+    "warning": "Advertencia: Esto sobrescribirá todos tus datos actuales.",
+    "loadButton": "Cargar Mundo",
+    "dismissButton": "Descartar",
+    "loading": "Cargando Mundo...",
+    "successTitle": "¡Éxito!",
+    "successBody": "El mundo compartido ha sido cargado. La aplicación se recargará para aplicar los cambios.",
+    "errorTitle": "Falló la Importación",
+    "errorBody": "El enlace podría estar dañado o no ser válido."
+  },
+  "viewHeader": {
+    "uploadBanner": "Subir Imagen de Banner",
+    "bannerSize": "Tamaño recomendado: 767x325"
+  },
+  "languages": {
+    "en": "Inglés",
+    "es": "Español",
+    "fr": "Francés",
+    "de": "Alemán",
+    "id": "Indonesio"
+  },
+  "languageSwitcher": {
+    "aria": {
+      "changeLanguage": "Cambiar idioma"
+    }
+  },
+  "app": {
+    "errors": {
+      "logoProcessing": "Hubo un error al procesar la imagen del logo. Puede ser un formato no compatible.",
+      "authBannerProcessing": "Hubo un error al procesar la imagen del banner de autenticación. Puede ser un formato no compatible.",
+      "importFailed": "No se pudo cargar el mundo compartido. El enlace podría estar dañado, caducado o no ser válido."
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '../contexts/I18nContext';
 
 type ImportStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -10,6 +11,7 @@ interface ImportModalProps {
 const ImportModal: React.FC<ImportModalProps> = ({ onConfirm, onDismiss }) => {
   const [status, setStatus] = useState<ImportStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const { t } = useI18n();
 
   const handleConfirm = async () => {
     setStatus('loading');
@@ -18,7 +20,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onConfirm, onDismiss }) => {
       setStatus('success');
       // The reload will be handled in the parent component after success.
     } catch (error: any) {
-      setErrorMessage(error.message || 'The link might be corrupted or invalid.');
+      setErrorMessage(error.message || t('importModal.errorBody'));
       setStatus('error');
     }
   };
@@ -32,20 +34,20 @@ const ImportModal: React.FC<ImportModalProps> = ({ onConfirm, onDismiss }) => {
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <p className="mt-4 text-lg font-semibold text-text-primary animate-pulse">Loading World...</p>
+            <p className="mt-4 text-lg font-semibold text-text-primary animate-pulse">{t('importModal.loading')}</p>
           </div>
         );
       case 'success':
         return (
           <div className="text-center p-8">
-            <h3 className="text-2xl font-bold text-accent mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>Success!</h3>
-            <p className="text-text-primary mb-6">The shared world has been loaded. The application will now reload to apply the changes.</p>
+            <h3 className="text-2xl font-bold text-accent mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('importModal.successTitle')}</h3>
+            <p className="text-text-primary mb-6">{t('importModal.successBody')}</p>
           </div>
         );
       case 'error':
         return (
           <div className="text-center p-8">
-            <h3 className="text-2xl font-bold text-red-400 mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>Import Failed</h3>
+            <h3 className="text-2xl font-bold text-red-400 mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('importModal.errorTitle')}</h3>
             <p className="text-text-primary mb-6">{errorMessage}</p>
             <button
               onClick={onDismiss}
@@ -60,11 +62,11 @@ const ImportModal: React.FC<ImportModalProps> = ({ onConfirm, onDismiss }) => {
         return (
           <>
             <div className="p-8 text-center">
-              <h3 className="text-2xl font-bold text-accent mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>Shared World Detected</h3>
+              <h3 className="text-2xl font-bold text-accent mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('importModal.title')}</h3>
               <p className="text-text-primary mb-8">
-                Do you want to load this world?
+                {t('importModal.body')}
                 <br />
-                <strong className="text-amber-400">Warning: This will overwrite all of your current data.</strong>
+                <strong className="text-amber-400">{t('importModal.warning')}</strong>
               </p>
             </div>
             <div className="bg-primary/50 px-8 py-4 flex flex-col sm:flex-row-reverse gap-3">
@@ -72,13 +74,13 @@ const ImportModal: React.FC<ImportModalProps> = ({ onConfirm, onDismiss }) => {
                 onClick={handleConfirm}
                 className="w-full sm:w-auto sm:ml-2 bg-accent hover:bg-sky-500 text-white font-bold py-3 px-6 rounded-md transition-colors"
               >
-                Load World
+                {t('importModal.loadButton')}
               </button>
               <button
                 onClick={onDismiss}
                 className="w-full sm:w-auto bg-secondary hover:bg-slate-600 text-text-primary font-bold py-3 px-6 rounded-md transition-colors"
               >
-                Dismiss
+                {t('importModal.dismissButton')}
               </button>
             </div>
           </>

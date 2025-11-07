@@ -1,6 +1,6 @@
-
 // FIX: Reconstructed the component from a truncated source file and added the missing default export.
 import React, { useRef } from 'react';
+import { useI18n } from '../contexts/I18nContext';
 
 interface ViewHeaderProps {
     title: string;
@@ -12,6 +12,7 @@ interface ViewHeaderProps {
 
 const ViewHeader: React.FC<ViewHeaderProps> = ({ title, imageUrl, onImageUpload, placeholderText, children }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { t } = useI18n();
 
     const handleButtonClick = () => {
         fileInputRef.current?.click();
@@ -63,9 +64,9 @@ const ViewHeader: React.FC<ViewHeaderProps> = ({ title, imageUrl, onImageUpload,
                 onImageUpload && (
                     <div className="w-full aspect-[767/325] max-h-[325px] rounded-lg border-2 border-dashed border-slate-600 flex flex-col items-center justify-center text-center text-text-secondary p-4 mb-4 hover:border-accent transition-colors">
                         <button onClick={handleButtonClick} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
-                            Upload Banner Image
+                            {t('viewHeader.uploadBanner')}
                         </button>
-                        <p className="text-sm mt-2">Recommended size: 767x325</p>
+                        <p className="text-sm mt-2">{t('viewHeader.bannerSize')}</p>
                     </div>
                 )
             )}

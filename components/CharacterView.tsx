@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Removed 'Appearance' from import as it's not exported from types and not used.
 import { Character, CharacterType, User } from '../types';
 import CharacterCard from './CharacterCard';
 import ViewHeader from './ViewHeader';
 import CharacterAvatar from './CharacterAvatar';
 import * as apiService from '../services/apiService';
+import { useI18n } from '../contexts/I18nContext';
 
 interface CharacterViewProps {
   characterType: CharacterType;
@@ -18,41 +18,77 @@ const isQuotaExceededError = (error: any) => {
 const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }) => {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
+  const [isNewlyAddedSelected, setIsNewlyAddedSelected] = useState(false);
+  const [allArcs, setAllArcs] = useState<string[]>([]);
+  const [selectedArc, setSelectedArc] = useState<string>('All Arcs');
+  const { t } = useI18n();
   
   useEffect(() => {
-    const loadCharacters = async () => {
-      try {
-          const savedCharacters = await apiService.getCharacters(characterType) || [];
+    const loadData = async () => {
+      let savedCharacters = await apiService.getCharacters(characterType) || [];
+      const arcs = await apiService.getAllArcs();
+      setAllArcs(arcs);
 
-          // Migration logic for old data structure
-          let hasMigrated = false;
-          const migratedCharacters = savedCharacters.map(char => {
-              const legacyChar = char as any;
-              if (legacyChar.appearances && !legacyChar.outfits) {
-                  hasMigrated = true;
-                  const migratedChar: Character = {
-                      ...legacyChar,
-                      portraitImageUrl: legacyChar.appearances[0]?.imageUrl || '',
-                      outfits: legacyChar.appearances,
-                  };
-                  delete (migratedChar as any).appearances;
-                  return migratedChar;
-              }
-              return char;
-          });
+      // --- MIGRATION LOGIC ---
+      let dataWasChanged = false;
 
-          if (hasMigrated) {
-              await apiService.saveCharacters(characterType, migratedCharacters);
+      // 1. Migrate Main Antagonists into Enemies
+      if (characterType === 'Enemies') {
+          const mainAntagonists = await apiService.getCharacters('Main Antagonist');
+          if (mainAntagonists && mainAntagonists.length > 0) {
+              savedCharacters = [...savedCharacters, ...mainAntagonists];
+              await apiService.removeCharacters('Main Antagonist');
+              dataWasChanged = true; // Needs resaving
+          }
+      }
+
+      // 2. Migrate data structure to new Portrait system and add `arcs` property
+      const migratedCharacters = savedCharacters.map(char => {
+          let needsUpdate = false;
+          let newChar: Character = { ...char };
+
+          // Add `arcs` array if it doesn't exist
+          if (!newChar.arcs) {
+              newChar.arcs = [];
+              needsUpdate = true;
+          }
+
+          // Check for old `portraitImageUrl`/`outfits` structure
+          const legacyChar = char as any;
+          if ('portraitImageUrl' in legacyChar || 'outfits' in legacyChar) {
+              newChar.portraits = [{
+                  id: crypto.randomUUID(),
+                  name: 'Default Portrait',
+                  imageUrl: legacyChar.portraitImageUrl || '',
+                  outfits: legacyChar.outfits || [{ id: crypto.randomUUID(), arcName: 'Default', imageUrl: '' }]
+              }];
+              delete (newChar as any).portraitImageUrl;
+              delete (newChar as any).outfits;
+              needsUpdate = true;
+          } else if (!newChar.portraits || newChar.portraits.length === 0) { // Ensure portraits array exists
+               newChar.portraits = [{
+                  id: crypto.randomUUID(),
+                  name: 'Default Portrait',
+                  imageUrl: '',
+                  outfits: [{ id: crypto.randomUUID(), arcName: 'Default', imageUrl: '' }]
+              }];
+              needsUpdate = true;
           }
           
-          setCharacters(migratedCharacters);
-      } catch (error) {
-          console.error("Failed to load characters", error);
-          setCharacters([]);
+          if (needsUpdate) dataWasChanged = true;
+          return newChar;
+      });
+
+      if (dataWasChanged) {
+          await apiService.saveCharacters(characterType, migratedCharacters);
       }
+      // --- END MIGRATION ---
+      
+      setCharacters(migratedCharacters);
       setSelectedCharacterIndex(null);
+      setIsNewlyAddedSelected(false);
     };
-    loadCharacters();
+    loadData();
   }, [characterType]);
 
   const saveCharacters = async (updatedCharacters: Character[]) => {
@@ -63,9 +99,9 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
       } catch(error) {
           console.error("Failed to save characters:", error);
           if (isQuotaExceededError(error)) {
-              alert("Could not save changes. The application storage is full. Please remove some data (e.g., gallery images) and try again.");
+              alert(t('characters.errors.saveQuota'));
           } else {
-              alert("An unknown error occurred while saving. Your changes may not be persisted.");
+              alert(t('characters.errors.saveGeneric'));
           }
           setCharacters(oldCharacters); // Rollback
       }
@@ -74,22 +110,27 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
   const handleAddCharacter = () => {
     const newCharacter: Character = {
         id: crypto.randomUUID(),
-        name: 'New Character',
-        status: 'Alive',
-        birthplace: 'Unknown',
-        age: 'Unknown',
-        height: 'Unknown',
-        weight: 'Unknown',
-        bloodType: 'Unknown',
-        about: 'A brief summary of the character.',
-        biography: 'The life story of the character.',
-        personality: 'Details about their traits and behavior.',
-        appearanceDescription: 'A textual description of how they look.',
-        powers: 'Abilities and skills.',
-        relationships: 'Connections to other characters.',
-        trivia: 'Interesting facts and notes.',
-        portraitImageUrl: '',
-        outfits: [{ id: crypto.randomUUID(), arcName: 'Default', imageUrl: '' }],
+        name: t('characters.newCharacter.name'),
+        status: t('characterCard.statusOptions.alive'),
+        birthplace: t('characters.newCharacter.unknown'),
+        age: t('characters.newCharacter.unknown'),
+        height: t('characters.newCharacter.unknown'),
+        weight: t('characters.newCharacter.unknown'),
+        bloodType: t('characters.newCharacter.unknown'),
+        about: t('characters.newCharacter.about'),
+        biography: t('characters.newCharacter.biography'),
+        personality: t('characters.newCharacter.personality'),
+        appearanceDescription: t('characters.newCharacter.appearanceDescription'),
+        powers: t('characters.newCharacter.powers'),
+        relationships: t('characters.newCharacter.relationships'),
+        trivia: t('characters.newCharacter.trivia'),
+        portraits: [{
+          id: crypto.randomUUID(),
+          name: t('characters.newCharacter.defaultPortraitName'),
+          imageUrl: '',
+          outfits: [{ id: crypto.randomUUID(), arcName: t('characters.newCharacter.defaultArcName'), imageUrl: '' }]
+        }],
+        arcs: [],
         gallery: [],
         stats: {
             strength: 10,
@@ -103,6 +144,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
     const updatedCharacters = [...characters, newCharacter];
     saveCharacters(updatedCharacters);
     setSelectedCharacterIndex(updatedCharacters.length - 1);
+    setIsNewlyAddedSelected(true);
   };
 
   const selectedCharacter = selectedCharacterIndex !== null ? characters[selectedCharacterIndex] : null;
@@ -113,27 +155,46 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
       index === selectedCharacterIndex ? updatedCharacter : char
     );
     saveCharacters(updatedCharacters);
+    setIsNewlyAddedSelected(false);
   };
 
   const handleCharacterDelete = (id: string) => {
-    if(window.confirm('Are you sure you want to delete this character? This action cannot be undone.')) {
+    if(window.confirm(t('characterCard.deleteConfirm'))) {
         const updatedCharacters = characters.filter(char => char.id !== id);
         saveCharacters(updatedCharacters);
         setSelectedCharacterIndex(null);
+        setIsNewlyAddedSelected(false);
     }
   };
+
+  const filteredCharacters = selectedArc === 'All Arcs'
+    ? characters
+    : characters.filter(char => char.arcs.includes(selectedArc));
   
   const renderGallery = () => {
-    if (characters.length === 0) {
-        return <div className="col-span-full text-center text-text-secondary py-10">No characters created yet. {userRole === 'admin' && 'Click "Add Character" to begin.'}</div>
+    if (filteredCharacters.length === 0) {
+        let message;
+        if (characters.length > 0) {
+            message = t('characters.noCharactersForArc', { arcName: selectedArc });
+        } else {
+            const cta = userRole === 'admin' ? t('characters.adminCta') : '';
+            message = t('characters.noCharactersYet', { cta });
+        }
+        return <div className="col-span-full text-center text-text-secondary py-10">{message}</div>
     }
-    return characters.map((character, index) => (
-      <CharacterAvatar 
-        key={character.id} 
-        character={character} 
-        onClick={() => setSelectedCharacterIndex(index)}
-      />
-    ));
+    return filteredCharacters.map((character) => {
+      const originalIndex = characters.findIndex(c => c.id === character.id);
+      return (
+        <CharacterAvatar 
+          key={character.id} 
+          character={character} 
+          onClick={() => {
+            setSelectedCharacterIndex(originalIndex);
+            setIsNewlyAddedSelected(false);
+          }}
+        />
+      )
+    });
   };
 
   const renderDetailView = () => {
@@ -141,16 +202,20 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
     return (
       <div className="mt-6">
         <button 
-            onClick={() => setSelectedCharacterIndex(null)}
+            onClick={() => {
+                setSelectedCharacterIndex(null);
+                setIsNewlyAddedSelected(false);
+            }}
             className="mb-6 flex items-center gap-2 text-accent hover:text-sky-300 transition-colors font-semibold"
         >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
-            Back to {characterType}
+            {t('characters.backTo', { characterType: translatedCharacterType })}
         </button>
         <CharacterCard 
             character={selectedCharacter}
+            isNewlyAdded={isNewlyAddedSelected}
             onUpdate={handleCharacterUpdate}
             onDelete={handleCharacterDelete}
             userRole={userRole}
@@ -159,16 +224,44 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
     );
   };
   
+  const characterTypeLabels: Record<CharacterType, string> = {
+    'Main Protagonist': t('sidebar.characterTypes.mainProtagonist'),
+    'Allies': t('sidebar.characterTypes.allies'),
+    'Enemies': t('sidebar.characterTypes.enemies'),
+    'Main Antagonist': t('sidebar.characterTypes.enemies'), // Legacy support
+  };
+  const translatedCharacterType = characterTypeLabels[characterType] || characterType;
+
   return (
     <div className="bg-characters-dark-blue rounded-xl shadow-lg p-6 md:p-8">
-      <ViewHeader title={characterType}>
-        {!selectedCharacter && userRole === 'admin' && (
-            <button
-                onClick={handleAddCharacter}
-                className="bg-accent hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
-            >
-                Add Character
-            </button>
+      <ViewHeader title={translatedCharacterType}>
+        {!selectedCharacter && (
+          <div className="flex items-center gap-4">
+            {allArcs.length > 0 && (
+              <div className="relative">
+                  <select
+                      value={selectedArc}
+                      onChange={(e) => setSelectedArc(e.target.value)}
+                      className="bg-secondary text-text-primary font-semibold py-2 pl-3 pr-8 rounded-md appearance-none focus:ring-accent focus:border-accent transition-colors"
+                      aria-label={t('characters.aria.filterByArc')}
+                  >
+                      <option value="All Arcs">{t('characters.allArcs')}</option>
+                      {allArcs.map(arc => <option key={arc} value={arc}>{arc}</option>)}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-text-secondary">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                  </div>
+              </div>
+            )}
+            {userRole === 'admin' && (
+              <button
+                  onClick={handleAddCharacter}
+                  className="bg-accent hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors"
+              >
+                  {t('characters.addCharacter')}
+              </button>
+            )}
+          </div>
         )}
       </ViewHeader>
       {selectedCharacter ? renderDetailView() : (

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import * as apiService from '../services/apiService';
+import { useI18n } from '../contexts/I18nContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 interface HeaderProps {
   title: string;
@@ -11,6 +13,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout }) => {
   const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     let isCancelled = false;
@@ -35,6 +38,7 @@ const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout }) =
         <h1 className="text-xl md:text-2xl font-semibold text-white">{title}</h1>
        </div>
        <div className="flex items-center gap-4">
+        <LanguageSwitcher />
         <div className="text-text-secondary text-right hidden sm:block">
           <span className="font-semibold text-text-primary">{user.username}</span>
           <span className="text-xs"> ({user.role})</span>
@@ -52,7 +56,7 @@ const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout }) =
           onClick={onLogout}
           className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors text-sm"
         >
-          Logout
+          {t('header.logout')}
         </button>
        </div>
     </header>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Character } from '../types';
+import { useI18n } from '../contexts/I18nContext';
 
 interface RadarChartProps {
   stats: Character['stats'];
@@ -7,12 +8,14 @@ interface RadarChartProps {
 }
 
 const STAT_KEYS: (keyof Character['stats'])[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
-const STAT_LABELS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
 const MAX_STAT_VALUE = 20; // Assume a max value for scaling
 
 const RadarChart: React.FC<RadarChartProps> = ({ stats, size = 200 }) => {
+  const { t } = useI18n();
   const center = size / 2;
   const radius = size * 0.4;
+
+  const STAT_LABELS = STAT_KEYS.map(key => t(`characterCard.statsShort.${key}`));
 
   const points = STAT_KEYS.map((key, i) => {
     const value = stats[key];

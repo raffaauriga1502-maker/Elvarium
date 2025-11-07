@@ -6,8 +6,9 @@ import CharacterView from './components/CharacterView';
 import AuthView from './components/AuthView';
 import ProfileView from './components/ProfileView';
 import ImportModal from './components/ImportModal';
-import { View, User } from './types';
+import { View, User, CharacterType } from './types';
 import * as apiService from './services/apiService';
+import { useI18n } from './contexts/I18nContext';
 
 const isQuotaExceededError = (error: any) => {
     return error instanceof DOMException && (error.name === 'QuotaExceededError' || error.code === 22);
@@ -48,6 +49,7 @@ const App: React.FC = () => {
   const [importData, setImportData] = useState<string | null>(null);
   const [importIsCompressed, setImportIsCompressed] = useState(false);
   const [sharedWorldId, setSharedWorldId] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const loadInitialData = async () => {
     const [logoKey, loggedInUser, authBannerKey] = await Promise.all([
@@ -123,7 +125,7 @@ const App: React.FC = () => {
       console.error("Failed to import data:", error);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
       // Re-throw with a user-friendly message for the modal to catch
-      throw new Error("Could not load the shared world. The link might be corrupted, expired, or invalid.");
+      throw new Error(t('app.errors.importFailed'));
     }
   };
 
@@ -153,7 +155,7 @@ const App: React.FC = () => {
         setLogoImageUrl(resolvedUrl);
     } catch (error) {
         console.error("Error processing logo image:", error);
-        alert("There was an error processing the logo image. It may be an unsupported format.");
+        alert(t('app.errors.logoProcessing'));
     }
   };
 
@@ -165,7 +167,7 @@ const App: React.FC = () => {
         setAuthBannerUrl(resolvedUrl);
     } catch (error) {
         console.error("Error processing auth banner image:", error);
-        alert("There was an error processing the auth banner image. It may be an unsupported format.");
+        alert(t('app.errors.authBannerProcessing'));
     }
   };
 
@@ -203,11 +205,18 @@ const App: React.FC = () => {
     const getTitle = () => {
        switch (activeView.type) {
         case 'home':
-          return 'Home';
+          return t('header.titleHome');
         case 'profile':
-          return 'User Profile';
+          return t('header.titleProfile');
         case 'characters':
-          return `Characters: ${activeView.subType}`;
+          const characterTypeLabels: Record<CharacterType, string> = {
+            'Main Protagonist': t('sidebar.characterTypes.mainProtagonist'),
+            'Allies': t('sidebar.characterTypes.allies'),
+            'Enemies': t('sidebar.characterTypes.enemies'),
+            'Main Antagonist': t('sidebar.characterTypes.enemies'),
+          };
+          const translatedType = characterTypeLabels[activeView.subType] || activeView.subType;
+          return t('header.titleCharacters', { characterType: translatedType });
         default:
           return 'Elvarium Dashboard';
       }

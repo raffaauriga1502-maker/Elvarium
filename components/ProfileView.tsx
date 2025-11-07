@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import ViewHeader from './ViewHeader';
 import * as apiService from '../services/apiService';
+import { useI18n } from '../contexts/I18nContext';
 
 interface ProfileViewProps {
   user: User;
@@ -17,6 +18,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
     const [editedUser, setEditedUser] = useState<User>(user);
     const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const { t } = useI18n();
 
     useEffect(() => {
         setEditedUser(user);
@@ -48,7 +50,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
                 setEditedUser(prev => ({ ...prev, avatarUrl: imageKey }));
             } catch (error) {
                 console.error("Error processing avatar image:", error);
-                alert("There was an error processing the avatar image.");
+                alert(t('profile.errors.avatarProcessing'));
             }
         }
     };
@@ -64,9 +66,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
         } catch (error) {
             console.error("Error saving profile:", error);
             if (isQuotaExceededError(error)) {
-                alert("Could not save profile. The application storage is full.");
+                alert(t('profile.errors.saveQuota'));
             } else {
-                alert("An error occurred while saving the profile.");
+                alert(t('profile.errors.saveGeneric'));
             }
         }
     };
@@ -80,19 +82,19 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
 
     return (
         <div className="bg-crystalline rounded-xl shadow-lg p-6 md:p-8">
-            <ViewHeader title={`${user.username}'s Profile`}>
+            <ViewHeader title={t('profile.profileTitle', { username: user.username })}>
                 {isEditing ? (
                     <div className="flex gap-2">
                         <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                            Save
+                            {t('profile.save')}
                         </button>
                         <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
-                            Cancel
+                            {t('profile.cancel')}
                         </button>
                     </div>
                 ) : (
                     <button onClick={() => setIsEditing(true)} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
-                        Edit Profile
+                        {t('profile.editProfile')}
                     </button>
                 )}
             </ViewHeader>
@@ -109,10 +111,10 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
                     <div 
                         className={`relative w-40 h-40 rounded-full bg-secondary border-4 border-slate-600 overflow-hidden group ${isEditing ? 'cursor-pointer hover:border-accent' : ''} transition-colors`}
                         onClick={handleAvatarClick}
-                        aria-label={isEditing ? 'Change avatar' : 'User avatar'}
+                        aria-label={isEditing ? t('profile.changeAvatar') : t('profile.userAvatar')}
                     >
                         {resolvedAvatarUrl ? (
-                            <img src={resolvedAvatarUrl} alt="User avatar" className="w-full h-full object-cover" />
+                            <img src={resolvedAvatarUrl} alt={t('profile.userAvatar')} className="w-full h-full object-cover" />
                         ) : (
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-slate-500 p-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -134,7 +136,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
 
                 <div className="w-full">
                     <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>
-                        Bio
+                        {t('profile.bio')}
                     </h3>
                     {isEditing ? (
                         <textarea
@@ -142,14 +144,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
                             onChange={handleBioChange}
                             rows={8}
                             className="w-full bg-secondary text-text-primary p-4 rounded-md border border-slate-600 focus:ring-accent focus:border-accent transition"
-                            placeholder="Tell us a little about yourself..."
+                            placeholder={t('profile.bioPlaceholder')}
                         />
                     ) : (
                         <div className="prose prose-invert max-w-none prose-p:text-text-primary">
                             {user.bio ? (
                                 user.bio.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)
                             ) : (
-                                <p className="text-text-secondary italic">No bio provided.</p>
+                                <p className="text-text-secondary italic">{t('profile.noBio')}</p>
                             )}
                         </div>
                     )}

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { View, CharacterType, User } from './types';
 import * as apiService from './services/apiService';
+import { useI18n } from './contexts/I18nContext';
 
 interface SidebarProps {
   activeView: View;
@@ -87,14 +88,22 @@ const NavLink: React.FC<{
 
 const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarOpen, setSidebarOpen, logoImageUrl, onLogoUpload, onAuthBannerUpload, userRole }) => {
   const [isCharactersExpanded, setCharactersExpanded] = useState(true);
-  const [shareLinkStatus, setShareLinkStatus] = useState('Copy Share Link');
+  const [shareStatus, setShareStatus] = useState<'idle' | 'generating' | 'copied' | 'error'>('idle');
+  const { t } = useI18n();
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
   const authBannerInputRef = useRef<HTMLInputElement>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
 
-  const characterSubTypes: CharacterType[] = ['Main Protagonist', 'Allies', 'Main Antagonist', 'Enemies'];
+  const characterSubTypes: CharacterType[] = ['Main Protagonist', 'Allies', 'Enemies'];
+  
+  const characterTypeLabels: Record<CharacterType, string> = {
+    'Main Protagonist': t('sidebar.characterTypes.mainProtagonist'),
+    'Allies': t('sidebar.characterTypes.allies'),
+    'Enemies': t('sidebar.characterTypes.enemies'),
+    'Main Antagonist': t('sidebar.characterTypes.enemies'), // Legacy support
+  };
 
   const handleNavClick = (view: View) => {
     setActiveView(view);
@@ -143,18 +152,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
   };
 
   const handleGenerateShareLink = async () => {
-    setShareLinkStatus('Generating...');
+    setShareStatus('generating');
     try {
       const link = await apiService.generateShareableLink();
       await navigator.clipboard.writeText(link);
-      setShareLinkStatus('Copied!');
-      setTimeout(() => setShareLinkStatus('Copy Share Link'), 3000);
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus('idle'), 3000);
     } catch (error: any) {
         console.error("Failed to generate share link:", error);
-        setShareLinkStatus('Error!');
+        setShareStatus('error');
         // The API service now throws a user-friendly error, so we can display it directly.
-        alert(error.message || "An unknown error occurred while generating the link.");
-        setTimeout(() => setShareLinkStatus('Copy Share Link'), 5000);
+        alert(error.message || t('sidebar.alerts.shareLinkErrorFallback'));
+        setTimeout(() => setShareStatus('idle'), 5000);
     }
   };
 
@@ -171,20 +180,27 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
             }
             const data = JSON.parse(text);
             
-            if (window.confirm("Are you sure you want to import this data? This will overwrite all existing data in the application.")) {
+            if (window.confirm(t('sidebar.prompts.importConfirm'))) {
                 await apiService.importAllData(data);
-                alert("Import successful! The application will now reload.");
+                alert(t('sidebar.alerts.importSuccess'));
                 window.location.reload();
             }
         } catch (error) {
             console.error("Failed to import data:", error);
-            alert("An error occurred during import. The file may be invalid. See console for details.");
+            alert(t('sidebar.alerts.importError'));
         }
     };
     reader.readAsText(file);
     // Reset the file input so the same file can be loaded again
     event.target.value = '';
   };
+  
+  const shareLinkText = {
+    idle: t('sidebar.copyShareLink'),
+    generating: t('sidebar.generating'),
+    copied: t('sidebar.copied'),
+    error: t('sidebar.error'),
+  }[shareStatus];
 
   const backgroundClass = activeView.type === 'home' 
     ? 'bg-crystalline'
@@ -266,7 +282,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
                           <button 
                             onClick={handleLogoImageClick}
                             className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black bg-opacity-60 rounded-full p-3"
-                            aria-label="Change logo"
+                            aria-label={t('sidebar.changeLogo')}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                               <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
@@ -277,9 +293,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
                           <button 
                               onClick={handleLogoImageClick}
                               className="bg-accent text-white font-bold py-2 px-4 rounded-md hover:bg-sky-500 transition-colors opacity-0 group-hover:opacity-100"
-                              aria-label="Upload logo"
+                              aria-label={t('sidebar.uploadLogo')}
                           >
-                              Upload Logo
+                              {t('sidebar.uploadLogo')}
                           </button>
                       )}
                   </div>
@@ -292,10 +308,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
             className={`group w-full text-left rounded-md p-2 my-1 transition-all duration-200 ease-in-out flex items-center pl-2 border-y-2 ${activeView.type === 'profile' ? 'border-accent/50 bg-accent/10' : 'border-transparent hover:border-accent/30'} ${activeView.type === 'profile' ? 'text-white' : 'text-text-primary hover:text-white'}`}
           >
               <UserIcon isActive={activeView.type === 'profile'} />
-              <span className="font-bold tracking-wider">Profile</span>
+              <span className="font-bold tracking-wider">{t('sidebar.profile')}</span>
           </button>
           <NavLink
-            label="Home"
+            label={t('sidebar.home')}
             isActive={activeView.type === 'home'}
             onClick={() => handleNavClick({ type: 'home' })}
           />
@@ -306,7 +322,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
             >
                 <span className="flex items-center">
                     <CrystalIcon isActive={activeView.type === 'characters'} />
-                    Characters
+                    {t('sidebar.characters')}
                 </span>
               <svg className={`w-5 h-5 transition-transform duration-300 ${isCharactersExpanded ? 'rotate-180' : 'rotate-0'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
             </button>
@@ -314,7 +330,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
               {characterSubTypes.map(subType => (
                 <NavLink
                   key={subType}
-                  label={subType}
+                  label={characterTypeLabels[subType]}
                   isSubLink
                   isActive={activeView.type === 'characters' && activeView.subType === subType}
                   onClick={() => handleNavClick({ type: 'characters', subType })}
@@ -340,50 +356,50 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
                     accept=".json"
                     className="hidden"
                 />
-                <h3 className="px-2 text-xs font-semibold text-text-secondary uppercase tracking-wider">Admin Controls</h3>
+                <h3 className="px-2 text-xs font-semibold text-text-secondary uppercase tracking-wider">{t('sidebar.adminControls')}</h3>
                 <button
                     onClick={() => authBannerInputRef.current?.click()}
                     className="group w-full text-left rounded-md p-2 text-sm text-text-primary hover:bg-secondary hover:text-white flex items-center"
-                    aria-label="Upload login screen banner"
+                    aria-label={t('sidebar.uploadLoginBanner')}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                     </svg>
-                    Upload Login Banner
+                    {t('sidebar.uploadLoginBanner')}
                 </button>
                 <div className="pt-2">
-                    <h4 className="px-2 text-xs font-semibold text-text-secondary uppercase tracking-wider">Share &amp; Backup</h4>
+                    <h4 className="px-2 text-xs font-semibold text-text-secondary uppercase tracking-wider">{t('sidebar.shareAndBackup')}</h4>
                     <div className="mt-1 space-y-1">
                         <button
                             onClick={handleGenerateShareLink}
-                            disabled={shareLinkStatus !== 'Copy Share Link'}
+                            disabled={shareStatus !== 'idle'}
                             className="group w-full text-left rounded-md p-2 text-sm text-text-primary hover:bg-secondary hover:text-white flex items-center disabled:text-text-secondary disabled:hover:bg-transparent"
-                            aria-label="Generate and copy a shareable link"
+                            aria-label={t('sidebar.aria.generateShareLink')}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
                             </svg>
-                            {shareLinkStatus}
+                            {shareLinkText}
                         </button>
                         <button
                             onClick={handleExportFile}
                             className="group w-full text-left rounded-md p-2 text-sm text-text-primary hover:bg-secondary hover:text-white flex items-center"
-                            aria-label="Download all application data as a file"
+                            aria-label={t('sidebar.aria.downloadData')}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
-                            Download File
+                            {t('sidebar.downloadFile')}
                         </button>
                         <button
                             onClick={() => importFileInputRef.current?.click()}
                             className="group w-full text-left rounded-md p-2 text-sm text-text-primary hover:bg-secondary hover:text-white flex items-center"
-                            aria-label="Import application data from a file"
+                            aria-label={t('sidebar.aria.importData')}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
                             </svg>
-                            Upload File
+                            {t('sidebar.uploadFile')}
                         </button>
                     </div>
                 </div>
