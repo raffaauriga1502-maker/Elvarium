@@ -260,6 +260,8 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     return btoa(binary);
 }
 
+const MAX_URL_SAFE_BASE64_LENGTH = 15000; // A safe limit for URL hash data to prevent browser crashes.
+
 export const generateShareableLink = async (): Promise<string> => {
     // Manually build the data object to ensure user data is excluded and image data is included.
     const SHAREABLE_LOCAL_STORAGE_KEYS = APP_KEYS.filter(
@@ -286,6 +288,11 @@ export const generateShareableLink = async (): Promise<string> => {
     const compressedBytes = await compressData(jsonString);
     const base64String = uint8ArrayToBase64(compressedBytes);
     const urlSafeBase64 = base64String.replace(/\+/g, '-').replace(/\//g, '_');
+
+    // Prevent creation of links that are too long for browsers to handle
+    if (urlSafeBase64.length > MAX_URL_SAFE_BASE64_LENGTH) {
+        throw new Error("This world is too large to be shared via a link. Please use the 'Download File' feature instead.");
+    }
 
     // Use window.location to construct the base URL. This is more reliable than
     // document.baseURI, especially when the app is running in an iframe.
