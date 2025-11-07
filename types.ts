@@ -1,4 +1,5 @@
 
+
 export type CharacterType = 'Main Protagonist' | 'Allies' | 'Main Antagonist' | 'Enemies';
 
 export type View =
@@ -6,7 +7,7 @@ export type View =
   | { type: 'profile' }
   | { type: 'characters'; subType: CharacterType };
 
-export interface Appearance {
+export interface Outfit {
   id: string;
   arcName: string;
   imageUrl: string;
@@ -44,7 +45,8 @@ export interface Character {
   relationships: string;
   trivia: string;
   
-  appearances: Appearance[];
+  portraitImageUrl?: string;
+  outfits: Outfit[];
   gallery: GalleryImage[];
   backgroundImageUrl?: string;
   stats: {

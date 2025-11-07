@@ -10,7 +10,7 @@ interface CharacterAvatarProps {
 
 const useResolvedAvatarUrl = (character?: Character) => {
     const [url, setUrl] = useState<string | null>(null);
-    const avatarKey = character?.appearances?.[0]?.imageUrl;
+    const avatarKey = character?.portraitImageUrl;
 
     useEffect(() => {
         let isCancelled = false;
@@ -65,7 +65,7 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
                   animation: 'subtle-shimmer 5s linear infinite'
                 }}
             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-slate-600" viewBox="http://www.w3.org/2000/svg" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-slate-600" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                 </svg>
             </div>

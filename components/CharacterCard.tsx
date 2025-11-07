@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Character, Appearance, GalleryImage, User } from '../types';
+// FIX: Changed import from 'Appearance' to 'Outfit' to match the updated types. Corrected import paths.
+import { Character, Outfit, GalleryImage, User } from '../types';
 import RadarChart from './RadarChart';
 import BarChart from './BarChart';
 import ImageModal from './ImageModal';
@@ -144,21 +145,23 @@ const EditableSection: React.FC<{
 
 const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDelete, userRole }) => {
   const backgroundFileInputRef = useRef<HTMLInputElement>(null);
+  const portraitFileInputRef = useRef<HTMLInputElement>(null);
   const dossierContainerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedCharacter, setEditedCharacter] = useState<Character>(character);
   const [chartType, setChartType] = useState<'radar' | 'bar' | null>(null);
   const [modalImage, setModalImage] = useState<{src: string, alt: string} | null>(null);
-  const [selectedAppearanceIndex, setSelectedAppearanceIndex] = useState(0);
+  const [selectedOutfitIndex, setSelectedOutfitIndex] = useState(0);
   const [generatingSection, setGeneratingSection] = useState<string | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   const resolvedBgUrl = useResolvedImageUrl(editedCharacter.backgroundImageUrl);
+  const resolvedPortraitUrl = useResolvedImageUrl(editedCharacter.portraitImageUrl);
   
   useEffect(() => {
     setEditedCharacter(character);
     setChartType(null);
-    setSelectedAppearanceIndex(0);
+    setSelectedOutfitIndex(0);
 
     if (character.name === 'New Character' && userRole === 'admin') {
       setIsEditing(true);
@@ -167,108 +170,95 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
     }
   }, [character, userRole]);
 
-  const mainAppearance = editedCharacter.appearances?.[selectedAppearanceIndex];
-  const resolvedMainAppearanceUrl = useResolvedImageUrl(mainAppearance?.imageUrl);
+  const selectedOutfit = editedCharacter.outfits?.[selectedOutfitIndex];
+  const resolvedOutfitUrl = useResolvedImageUrl(selectedOutfit?.imageUrl);
 
   const handleBackgroundFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
         try {
             const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1280, maxHeight: 720, quality: 0.7 });
-            setEditedCharacter(prev => {
-                const newChar = { ...prev, backgroundImageUrl: imageKey };
-                onUpdate(newChar);
-                return newChar;
-            });
+            setEditedCharacter(prev => ({ ...prev, backgroundImageUrl: imageKey }));
         } catch (error) {
             console.error("Error processing background image:", error);
             alert("There was an error processing the background image.");
         }
     }
   };
+
+   const handlePortraitFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+        try {
+            const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 512, maxHeight: 512, quality: 0.8 });
+            setEditedCharacter(prev => ({ ...prev, portraitImageUrl: imageKey }));
+        } catch (error) {
+            console.error("Error processing portrait image:", error);
+            alert("There was an error processing the portrait image.");
+        }
+    }
+  };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setEditedCharacter(prev => {
-        const newChar = { ...prev, [name]: value };
-        onUpdate(newChar);
-        return newChar;
-    });
+    setEditedCharacter(prev => ({ ...prev, [name]: value }));
   };
   
   const handleStatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
-      setEditedCharacter(prev => {
-        const newChar = {
+      setEditedCharacter(prev => ({
             ...prev,
             stats: {
               ...prev.stats,
               [name]: Number(value) || 0,
             }
-        };
-        onUpdate(newChar);
-        return newChar;
-      });
+        }));
   };
   
-  const handleAppearanceChange = (id: string, field: 'arcName', value: string) => {
-    setEditedCharacter(prev => {
-        const newChar = {
-            ...prev,
-            appearances: prev.appearances.map(app => app.id === id ? { ...app, [field]: value } : app)
-        };
-        onUpdate(newChar);
-        return newChar;
-    });
+  const handleOutfitChange = (id: string, field: 'arcName', value: string) => {
+    setEditedCharacter(prev => ({
+        ...prev,
+        outfits: prev.outfits.map(o => o.id === id ? { ...o, [field]: value } : o)
+    }));
   };
   
-  const handleAppearanceImageChange = async (id: string, file: File) => {
+  const handleOutfitImageChange = async (id: string, file: File) => {
     try {
         const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 512, maxHeight: 512, quality: 0.8 });
-        setEditedCharacter(prev => {
-            const newChar = {
-                ...prev,
-                appearances: prev.appearances.map(app => app.id === id ? { ...app, imageUrl: imageKey } : app)
-            };
-            onUpdate(newChar);
-            return newChar;
-        });
+        setEditedCharacter(prev => ({
+            ...prev,
+            outfits: prev.outfits.map(o => o.id === id ? { ...o, imageUrl: imageKey } : o)
+        }));
     } catch (error) {
-        console.error("Error processing appearance image:", error);
-        alert("There was an error processing the appearance image.");
+        console.error("Error processing outfit image:", error);
+        alert("There was an error processing the outfit image.");
     }
   };
 
-  const handleAddAppearance = () => {
-      const newAppearance: Appearance = {
+  const handleAddOutfit = () => {
+      const newOutfit: Outfit = {
           id: crypto.randomUUID(),
           arcName: 'New Arc',
           imageUrl: '',
       };
-      setEditedCharacter(prev => {
-          const newChar = {
-              ...prev,
-              appearances: [...prev.appearances, newAppearance]
-          };
-          onUpdate(newChar);
-          return newChar;
-      });
+      setEditedCharacter(prev => ({
+          ...prev,
+          outfits: [...prev.outfits, newOutfit]
+      }));
   };
   
-  const handleDeleteAppearance = (id: string) => {
-      if (editedCharacter.appearances.length <= 1) {
-          alert("A character must have at least one appearance.");
+  const handleDeleteOutfit = (id: string) => {
+      if (editedCharacter.outfits.length <= 1) {
+          alert("A character must have at least one outfit.");
           return;
       }
       setEditedCharacter(prev => {
-        const newIndex = selectedAppearanceIndex >= prev.appearances.length - 1 ? prev.appearances.length - 2 : selectedAppearanceIndex;
-        setSelectedAppearanceIndex(Math.max(0, newIndex));
-        const newChar = {
+        const newIndex = selectedOutfitIndex >= prev.outfits.length - 1 ? prev.outfits.length - 2 : selectedOutfitIndex;
+        setSelectedOutfitIndex(Math.max(0, newIndex));
+        return {
             ...prev,
-            appearances: prev.appearances.filter(app => app.id !== id)
+            outfits: prev.outfits.filter(o => o.id !== id)
         };
-        onUpdate(newChar);
-        return newChar;
       });
   };
 
@@ -278,38 +268,26 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         caption: 'New Image',
         imageUrl: '',
     };
-    setEditedCharacter(prev => {
-        const newChar = {
-            ...prev,
-            gallery: [...(prev.gallery || []), newImage]
-        };
-        onUpdate(newChar);
-        return newChar;
-    });
+    setEditedCharacter(prev => ({
+        ...prev,
+        gallery: [...(prev.gallery || []), newImage]
+    }));
   };
 
   const handleDeleteGalleryImage = (id: string) => {
-    setEditedCharacter(prev => {
-        const newChar = {
-            ...prev,
-            gallery: prev.gallery.filter(img => img.id !== id)
-        };
-        onUpdate(newChar);
-        return newChar;
-    });
+    setEditedCharacter(prev => ({
+        ...prev,
+        gallery: prev.gallery.filter(img => img.id !== id)
+    }));
   };
 
   const handleGalleryImageChange = async (id: string, file: File) => {
     try {
         const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1024, maxHeight: 1024, quality: 0.8 });
-        setEditedCharacter(prev => {
-            const newChar = {
-                ...prev,
-                gallery: prev.gallery.map(img => img.id === id ? { ...img, imageUrl: imageKey } : img)
-            };
-            onUpdate(newChar);
-            return newChar;
-        });
+        setEditedCharacter(prev => ({
+            ...prev,
+            gallery: prev.gallery.map(img => img.id === id ? { ...img, imageUrl: imageKey } : img)
+        }));
     } catch (error) {
         console.error("Error processing gallery image:", error);
         alert("There was an error processing the gallery image.");
@@ -317,35 +295,32 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
   };
 
   const handleGalleryCaptionChange = (id: string, caption: string) => {
-    setEditedCharacter(prev => {
-        const newChar = {
-            ...prev,
-            gallery: prev.gallery.map(img => img.id === id ? { ...img, caption } : img)
-        };
-        onUpdate(newChar);
-        return newChar;
-    });
+    setEditedCharacter(prev => ({
+        ...prev,
+        gallery: prev.gallery.map(img => img.id === id ? { ...img, caption } : img)
+    }));
   };
 
-  const handleDoneEditing = () => {
-    // onUpdate is already called on every change, so we just exit edit mode.
+  const handleSave = () => {
+    onUpdate(editedCharacter);
     setIsEditing(false);
   };
   
+  const handleCancel = () => {
+    setEditedCharacter(character);
+    setIsEditing(false);
+  };
+
   const handleGenerateDetail = async (
     sectionName: keyof Pick<Character, 'about' | 'biography' | 'personality' | 'appearanceDescription' | 'powers' | 'relationships' | 'trivia'>
   ) => {
       setGeneratingSection(sectionName);
       try {
           const generatedText = await generateCharacterDetail(editedCharacter, sectionName);
-          setEditedCharacter(prev => {
-              const newChar = {
-                  ...prev,
-                  [sectionName]: generatedText,
-              };
-              onUpdate(newChar); // Save after generating
-              return newChar;
-          });
+          setEditedCharacter(prev => ({
+              ...prev,
+              [sectionName]: generatedText,
+          }));
       } catch (error) {
           console.error(`Failed to generate ${sectionName}`, error);
       } finally {
@@ -353,28 +328,23 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
       }
   };
 
-  const handleGenerateImage = async () => {
-    if (!mainAppearance) return;
+  const handleGenerateOutfitImage = async () => {
+    if (!selectedOutfit) return;
     setIsGeneratingImage(true);
     try {
         const base64Data = await generateCharacterImage(editedCharacter);
-        // Convert base64 to blob to store in IDB
         const fetchRes = await fetch(`data:image/png;base64,${base64Data}`);
         const blob = await fetchRes.blob();
         
         const key = `idb://${crypto.randomUUID()}`;
         await idbService.setImage(key, blob);
 
-        setEditedCharacter(prev => {
-            const newChar = {
-                ...prev,
-                appearances: prev.appearances.map((app, index) => 
-                    index === selectedAppearanceIndex ? { ...app, imageUrl: key } : app
-                )
-            };
-            onUpdate(newChar);
-            return newChar;
-        });
+        setEditedCharacter(prev => ({
+            ...prev,
+            outfits: prev.outfits.map((o, index) => 
+                index === selectedOutfitIndex ? { ...o, imageUrl: key } : o
+            )
+        }));
     } catch (error) {
         console.error("Image generation failed", error);
         alert("Sorry, the AI couldn't generate an image. Please try again or check the console for errors.");
@@ -401,7 +371,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         { id: 'about', label: 'About', name: 'about' },
         { id: 'biography', label: 'Biography', name: 'biography' },
         { id: 'personality', label: 'Personality', name: 'personality' },
-        { id: 'appearance', label: 'Appearance', name: 'appearance' },
+        { id: 'appearance', label: 'Appearance', name: 'appearanceDescription' },
         { id: 'powers', label: 'Powers & Abilities', name: 'powers' },
         { id: 'relationships', label: 'Relationships', name: 'relationships' },
         { id: 'stats', label: 'Stats', name: 'stats' },
@@ -442,7 +412,10 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         {canEdit && (
             <div className="absolute top-4 right-4 z-20 flex gap-2">
                 {isEditing ? (
-                    <button onClick={handleDoneEditing} className="bg-accent hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-md transition-colors text-sm">Done</button>
+                    <>
+                        <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-md transition-colors text-sm">Save</button>
+                        <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-1 px-3 rounded-md transition-colors text-sm">Cancel</button>
+                    </>
                 ) : (
                     <>
                         <button onClick={() => backgroundFileInputRef.current?.click()} className="bg-secondary/50 hover:bg-secondary text-text-primary p-2 rounded-full transition-colors backdrop-blur-sm" title="Edit Background">
@@ -462,9 +435,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         {/* --- LEFT PANEL: ID CARD --- */}
         <div className="flex-shrink-0 w-full md:w-1/3 space-y-4">
             <div className="relative w-full aspect-square max-w-sm mx-auto rounded-xl border-4 border-secondary/75 shadow-lg object-cover overflow-hidden bg-primary group">
-                <div onClick={() => !isEditing && resolvedMainAppearanceUrl && setModalImage({ src: resolvedMainAppearanceUrl, alt: editedCharacter.name })} className={`${!isEditing && resolvedMainAppearanceUrl ? 'cursor-pointer' : ''}`}>
-                    {resolvedMainAppearanceUrl ? (
-                        <img src={resolvedMainAppearanceUrl} alt={editedCharacter.name} className="w-full h-full object-cover"/>
+                <div onClick={() => !isEditing && resolvedOutfitUrl && setModalImage({ src: resolvedOutfitUrl, alt: editedCharacter.name })} className={`${!isEditing && resolvedOutfitUrl ? 'cursor-pointer' : ''}`}>
+                    {resolvedOutfitUrl ? (
+                        <img src={resolvedOutfitUrl} alt={editedCharacter.name} className="w-full h-full object-cover"/>
                     ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg></div>
                     )}
@@ -472,10 +445,10 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                  {isEditing && canEdit && (
                     <div className="absolute bottom-2 right-2 z-10">
                         <button 
-                            onClick={handleGenerateImage}
+                            onClick={handleGenerateOutfitImage}
                             disabled={isGeneratingImage}
                             className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-md transition-colors bg-accent/80 backdrop-blur-sm text-white hover:bg-accent disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed shadow-lg"
-                            aria-label="Generate Character Portrait with AI"
+                            aria-label="Generate Character Outfit with AI"
                             title="Generate with AI"
                         >
                             {isGeneratingImage ? (
@@ -506,20 +479,20 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                 )}
             </div>
             
-            {!isEditing && editedCharacter.appearances.length > 1 && (
+            {!isEditing && editedCharacter.outfits.length > 1 && (
                 <div className="flex flex-wrap justify-center gap-2 px-2">
-                    {editedCharacter.appearances.map((appearance, index) => (
+                    {editedCharacter.outfits.map((outfit, index) => (
                         <button
-                            key={appearance.id}
-                            onClick={() => setSelectedAppearanceIndex(index)}
-                            aria-label={`Switch to ${appearance.arcName} appearance`}
+                            key={outfit.id}
+                            onClick={() => setSelectedOutfitIndex(index)}
+                            aria-label={`Switch to ${outfit.arcName} outfit`}
                             className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
-                                selectedAppearanceIndex === index 
+                                selectedOutfitIndex === index 
                                     ? 'bg-accent text-white shadow-md' 
                                     : 'bg-secondary/70 text-text-secondary hover:bg-secondary hover:text-text-primary'
                             }`}
                         >
-                            {appearance.arcName}
+                            {outfit.arcName}
                         </button>
                     ))}
                 </div>
@@ -527,38 +500,52 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             
             {isEditing && (
                 <div className="space-y-3 p-3 bg-primary/60 rounded-lg max-h-60 overflow-y-auto">
-                    <h4 className="text-lg font-semibold text-accent mb-2 text-center">Edit Appearances</h4>
-                    {editedCharacter.appearances.map((appearance) => {
-                        const fileInputId = `appearance-file-${appearance.id}`;
+                    <h4 className="text-lg font-semibold text-accent mb-2 text-center">Edit Outfits</h4>
+                    {editedCharacter.outfits.map((outfit) => {
+                        const fileInputId = `outfit-file-${outfit.id}`;
                         return (
-                             <div key={appearance.id} className="flex items-center gap-3 bg-secondary/50 p-2 rounded-lg">
+                             <div key={outfit.id} className="flex items-center gap-3 bg-secondary/50 p-2 rounded-lg">
                                 <div className="relative w-14 h-14 rounded-md overflow-hidden bg-primary flex-shrink-0 group">
-                                    <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleAppearanceImageChange(appearance.id, e.target.files[0])}/>
-                                    <ResolvedImageDisplay imageKey={appearance.imageUrl} alt={appearance.arcName} defaultIconSize="h-6 w-6" />
+                                    <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleOutfitImageChange(outfit.id, e.target.files[0])}/>
+                                    <ResolvedImageDisplay imageKey={outfit.imageUrl} alt={outfit.arcName} defaultIconSize="h-6 w-6" />
                                     <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                                     </label>
                                 </div>
                                 <div className="flex-grow">
                                     <label className="text-xs text-text-secondary">Arc Name</label>
-                                    <input type="text" value={appearance.arcName} onChange={(e) => handleAppearanceChange(appearance.id, 'arcName', e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-sm text-text-primary focus:ring-accent focus:border-accent transition"/>
+                                    <input type="text" value={outfit.arcName} onChange={(e) => handleOutfitChange(outfit.id, 'arcName', e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-sm text-text-primary focus:ring-accent focus:border-accent transition"/>
                                 </div>
-                                <button onClick={() => handleDeleteAppearance(appearance.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors self-end">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                                <button onClick={() => handleDeleteOutfit(outfit.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors self-end">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                                 </button>
                             </div>
                         )
                     })}
-                    <button onClick={handleAddAppearance} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors mt-2">
-                        + Add Appearance
+                    <button onClick={handleAddOutfit} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors mt-2">
+                        + Add Outfit
                     </button>
                 </div>
             )}
 
-            <div className="text-3xl font-bold text-white break-words text-center" style={{ fontFamily: "'Cinzel Decorative', serif", textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                {isEditing ? (
-                    <input type="text" name="name" value={editedCharacter.name} onChange={handleInputChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center text-3xl" style={{ fontFamily: "'Cinzel Decorative', serif"}} />
-                ) : (<h3>{editedCharacter.name}</h3>)}
+            <div className="flex flex-col items-center gap-3 mt-4">
+                <h4 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Portrait</h4>
+                {canEdit && isEditing && <input type="file" ref={portraitFileInputRef} onChange={handlePortraitFileChange} accept="image/*" className="hidden" />}
+                <div className={`relative w-24 h-24 rounded-full bg-primary border-4 border-secondary/75 overflow-hidden ${canEdit && isEditing ? 'group cursor-pointer' : ''}`}
+                     onClick={() => canEdit && isEditing && portraitFileInputRef.current?.click()}
+                >
+                    <ResolvedImageDisplay imageKey={editedCharacter.portraitImageUrl} alt={`${editedCharacter.name} Portrait`} defaultIconSize="h-12 w-12" />
+                     {canEdit && isEditing && (
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 flex items-center justify-center transition-opacity">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                        </div>
+                    )}
+                </div>
+                <div className="text-3xl font-bold text-white break-words text-center" style={{ fontFamily: "'Cinzel Decorative', serif", textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                    {isEditing ? (
+                        <input type="text" name="name" value={editedCharacter.name} onChange={handleInputChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center text-3xl" style={{ fontFamily: "'Cinzel Decorative', serif"}} />
+                    ) : (<h3>{editedCharacter.name}</h3>)}
+                </div>
             </div>
         </div>
         
@@ -636,7 +623,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                            <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleGalleryImageChange(image.id, e.target.files[0])}/>
                                             <ResolvedImageDisplay imageKey={image.imageUrl} alt={image.caption} defaultIconSize="h-8 w-8" />
                                            <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
-                                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                                            </label>
                                        </div>
                                        <div className="flex-grow">
@@ -644,7 +631,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                            <input type="text" value={image.caption} onChange={(e) => handleGalleryCaptionChange(image.id, e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"/>
                                        </div>
                                        <button onClick={() => handleDeleteGalleryImage(image.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                                        </button>
                                    </div>
                                )
@@ -680,7 +667,7 @@ const ResolvedImageDisplay: React.FC<{imageKey?: string, alt: string, defaultIco
     }
     return (
         <div className="w-full h-full flex items-center justify-center text-slate-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className={defaultIconSize} viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={defaultIconSize} viewBox="http://www.w3.org/2000/svg" fill="currentColor">
                 <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
             </svg>
         </div>

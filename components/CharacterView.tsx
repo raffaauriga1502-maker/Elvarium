@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Character, CharacterType, Appearance, User } from '../types';
+// FIX: Removed 'Appearance' from import as it's not exported from types and not used.
+import { Character, CharacterType, User } from '../types';
 import CharacterCard from './CharacterCard';
 import ViewHeader from './ViewHeader';
 import CharacterAvatar from './CharacterAvatar';
@@ -21,8 +22,30 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
   useEffect(() => {
     const loadCharacters = async () => {
       try {
-          const savedCharacters = await apiService.getCharacters(characterType);
-          setCharacters(savedCharacters || []);
+          const savedCharacters = await apiService.getCharacters(characterType) || [];
+
+          // Migration logic for old data structure
+          let hasMigrated = false;
+          const migratedCharacters = savedCharacters.map(char => {
+              const legacyChar = char as any;
+              if (legacyChar.appearances && !legacyChar.outfits) {
+                  hasMigrated = true;
+                  const migratedChar: Character = {
+                      ...legacyChar,
+                      portraitImageUrl: legacyChar.appearances[0]?.imageUrl || '',
+                      outfits: legacyChar.appearances,
+                  };
+                  delete (migratedChar as any).appearances;
+                  return migratedChar;
+              }
+              return char;
+          });
+
+          if (hasMigrated) {
+              await apiService.saveCharacters(characterType, migratedCharacters);
+          }
+          
+          setCharacters(migratedCharacters);
       } catch (error) {
           console.error("Failed to load characters", error);
           setCharacters([]);
@@ -65,7 +88,8 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
         powers: 'Abilities and skills.',
         relationships: 'Connections to other characters.',
         trivia: 'Interesting facts and notes.',
-        appearances: [{ id: crypto.randomUUID(), arcName: 'Default', imageUrl: '' }],
+        portraitImageUrl: '',
+        outfits: [{ id: crypto.randomUUID(), arcName: 'Default', imageUrl: '' }],
         gallery: [],
         stats: {
             strength: 10,
