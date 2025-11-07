@@ -268,10 +268,17 @@ export const generateShareableLink = async (): Promise<string> => {
     const base64String = uint8ArrayToBase64(compressedBytes);
     const urlSafeBase64 = base64String.replace(/\+/g, '-').replace(/\//g, '_');
 
-    const url = new URL(window.location.href);
-    // Use a new prefix to indicate compressed data
-    url.hash = `cdata=${urlSafeBase64}`;
-    return url.toString();
+    // Use window.location to construct the base URL. This is more reliable than
+    // document.baseURI, especially when the app is running in an iframe.
+    const baseUrl = window.location.origin + window.location.pathname;
+    
+    const url = new URL(baseUrl);
+    
+    // Clear any existing query params or hash from the base URL.
+    url.search = '';
+    url.hash = `#cdata=${urlSafeBase64}`;
+
+    return url.href;
 };
 
 

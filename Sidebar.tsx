@@ -68,14 +68,6 @@ const UserIcon: React.FC<{ isActive?: boolean }> = ({ isActive = false }) => {
     );
 };
 
-const ExternalLinkIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="mr-3 -ml-1 h-5 w-5 flex-shrink-0 text-sky-400/40 group-hover:text-accent/80 transition-colors duration-300" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-    </svg>
-);
-
-
 const NavLink: React.FC<{
   label: string;
   isActive: boolean;
@@ -329,16 +321,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
               ))}
             </div>
           </div>
-           {/* Link to external site */}
-          <a
-            href="https://your-main-website.com" // TODO: Update this URL to point to your main website
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group w-full text-left rounded-md p-2 my-1 transition-all duration-200 ease-in-out flex items-center pl-2 text-text-primary hover:bg-secondary hover:text-white"
-          >
-            <ExternalLinkIcon />
-            <span>Back to Main Site</span>
-          </a>
         </nav>
 
         {userRole === 'admin' && (
