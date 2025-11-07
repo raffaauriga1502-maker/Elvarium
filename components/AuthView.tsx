@@ -110,8 +110,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
           <div className="p-8">
             <div className="text-center mb-6">
                     <h2 
-                        className="text-2xl font-semibold text-white" 
-                        style={{ fontFamily: "'Cinzel Decorative', serif" }}
+                        className="text-2xl font-semibold text-white font-display"
                     >
                         {isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}
                     </h2>

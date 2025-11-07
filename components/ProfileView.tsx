@@ -135,7 +135,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
                 </div>
 
                 <div className="w-full">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>
+                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">
                         {t('profile.bio')}
                     </h3>
                     {isEditing ? (

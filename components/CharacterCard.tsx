@@ -91,7 +91,7 @@ const SimpleEditableSection: React.FC<{
     return (
         <div>
             <div className="flex justify-between items-center mb-3 border-b-2 border-accent/30 pb-2">
-                <h3 className="text-2xl font-bold text-accent" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{title}</h3>
+                <h3 className="text-2xl font-bold text-accent font-display">{title}</h3>
             </div>
             {isEditing ? (
                  <textarea
@@ -454,9 +454,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             
             {/* --- PORTRAIT & OUTFIT SELECTORS --- */}
              <div className="flex flex-col items-center gap-3">
-                 <div className="text-3xl font-bold text-white break-words text-center" style={{ fontFamily: "'Cinzel Decorative', serif", textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                 <div className="text-3xl font-bold text-white break-words text-center font-display" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
                     {isEditing ? (
-                        <input type="text" name="name" value={editedCharacter.name} onChange={handleInputChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center text-3xl" style={{ fontFamily: "'Cinzel Decorative', serif"}} />
+                        <input type="text" name="name" value={editedCharacter.name} onChange={handleInputChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center text-3xl font-display" />
                     ) : (<h3>{editedCharacter.name}</h3>)}
                 </div>
                  <div className="w-full p-3 bg-primary/60 rounded-lg space-y-2">
@@ -615,7 +615,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                 <section id="dossier-relationships" className="mb-8"><SimpleEditableSection title={t('characterCard.relationships')} content={editedCharacter.relationships} name="relationships" isEditing={isEditing} onChange={handleInputChange}/></section>
                 
                 <section id="dossier-stats" className="mb-8">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('characterCard.stats')}</h3>
+                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">{t('characterCard.stats')}</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {STAT_KEYS.map(key => (
                             <div key={key} className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg text-center">
@@ -645,7 +645,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                 </section>
                  <section id="dossier-trivia" className="mb-8"><SimpleEditableSection title={t('characterCard.trivia')} content={editedCharacter.trivia} name="trivia" isEditing={isEditing} onChange={handleInputChange}/></section>
                  <section id="dossier-gallery">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('characterCard.gallery')}</h3>
+                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">{t('characterCard.gallery')}</h3>
                      {isEditing ? (
                         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                            {(editedCharacter.gallery || []).map((image) => {

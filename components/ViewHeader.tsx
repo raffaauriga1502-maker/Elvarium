@@ -72,7 +72,7 @@ const ViewHeader: React.FC<ViewHeaderProps> = ({ title, imageUrl, onImageUpload,
             )}
             
             <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold text-white" style={{ fontFamily: "'Cinzel Decorative', serif" }}>
+                <h2 className="text-3xl font-bold text-white font-display">
                     {title || placeholderText}
                 </h2>
                 <div>

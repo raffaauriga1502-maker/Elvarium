@@ -238,7 +238,7 @@ const App: React.FC = () => {
       }
     }
     return (
-      <div className="flex h-screen bg-primary font-sans">
+      <div className="flex h-screen bg-primary font-serif">
         <Sidebar 
           activeView={activeView} 
           setActiveView={setActiveView} 

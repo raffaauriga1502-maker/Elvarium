@@ -40,14 +40,14 @@ const ImportModal: React.FC<ImportModalProps> = ({ onConfirm, onDismiss }) => {
       case 'success':
         return (
           <div className="text-center p-8">
-            <h3 className="text-2xl font-bold text-accent mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('importModal.successTitle')}</h3>
+            <h3 className="text-2xl font-bold text-accent mb-4 font-display">{t('importModal.successTitle')}</h3>
             <p className="text-text-primary mb-6">{t('importModal.successBody')}</p>
           </div>
         );
       case 'error':
         return (
           <div className="text-center p-8">
-            <h3 className="text-2xl font-bold text-red-400 mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('importModal.errorTitle')}</h3>
+            <h3 className="text-2xl font-bold text-red-400 mb-4 font-display">{t('importModal.errorTitle')}</h3>
             <p className="text-text-primary mb-6">{errorMessage}</p>
             <button
               onClick={onDismiss}
@@ -62,7 +62,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onConfirm, onDismiss }) => {
         return (
           <>
             <div className="p-8 text-center">
-              <h3 className="text-2xl font-bold text-accent mb-4" style={{ fontFamily: "'Cinzel Decorative', serif" }}>{t('importModal.title')}</h3>
+              <h3 className="text-2xl font-bold text-accent mb-4 font-display">{t('importModal.title')}</h3>
               <p className="text-text-primary mb-8">
                 {t('importModal.body')}
                 <br />
