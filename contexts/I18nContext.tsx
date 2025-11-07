@@ -1,8 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useMemo } from 'react';
-
-// REMOVED: import enTranslations from ...
-// This removes the static import that was causing the module resolution error.
-// Translations are now loaded dynamically via fetch.
+import { translations as enTranslations } from '../locales/en';
 
 export const supportedLanguages = {
     en: { flag: '🇬🇧' },
@@ -36,43 +33,26 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     });
 
-    const [translations, setTranslations] = useState<Record<string, any> | null>(null);
-    const [fallbackTranslations, setFallbackTranslations] = useState<Record<string, any> | null>(null);
+    const [translations, setTranslations] = useState<Record<string, any>>(enTranslations);
 
     useEffect(() => {
         const loadTranslations = async () => {
-            // Step 1: Ensure English is loaded as the fallback.
-            // This only runs once when the component mounts.
-            let fallbackData = fallbackTranslations;
-            if (!fallbackData) {
-                try {
-                    const res = await fetch('/locales/en.json');
-                    fallbackData = await res.json();
-                    setFallbackTranslations(fallbackData);
-                } catch (e) {
-                    console.error("Failed to load fallback translations (en.json)", e);
-                    fallbackData = {}; // Set empty to prevent retries
-                    setFallbackTranslations(fallbackData);
-                }
-            }
-
-            // Step 2: Load the currently selected language.
             if (lang === 'en') {
-                setTranslations(fallbackData);
-            } else {
-                try {
-                    const res = await fetch(`/locales/${lang}.json`);
-                    const data = await res.json();
-                    setTranslations(data);
-                } catch (e) {
-                    console.warn(`Failed to load translations for ${lang}. Falling back to English.`, e);
-                    setTranslations(fallbackData);
-                }
+                setTranslations(enTranslations);
+                return;
+            }
+            try {
+                // Use dynamic import to lazy-load the language module
+                const module = await import(`../locales/${lang}.ts`);
+                setTranslations(module.translations);
+            } catch (e) {
+                console.warn(`Failed to load translations for ${lang}. Falling back to English.`, e);
+                setTranslations(enTranslations);
             }
         };
 
         loadTranslations();
-    }, [lang, fallbackTranslations]);
+    }, [lang]);
 
     const setLang = useCallback((newLang: LanguageCode) => {
         try {
@@ -84,9 +64,8 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const t = useCallback((key: string, replacements?: Record<string, string | number>): string => {
-        if (!translations || !fallbackTranslations) {
-            return key; // Return the key itself if translations aren't loaded
-        }
+        // Fallback translations are now built-in via the 'en' import
+        const fallbackTranslations = enTranslations;
         let translatedString = getNestedValue(translations, key) || getNestedValue(fallbackTranslations, key) || key;
 
         if (replacements && typeof translatedString === 'string') {
@@ -96,15 +75,11 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         return translatedString;
-    }, [translations, fallbackTranslations]);
+    }, [translations]);
     
     const contextValue = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
 
-    // Render children only when translations are loaded to prevent errors and FOUC.
-    if (!translations) {
-        return null;
-    }
-
+    // No need to check for translations loading anymore, as we have a default state
     return (
         <I18nContext.Provider value={contextValue}>
             {children}
