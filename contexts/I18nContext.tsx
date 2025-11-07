@@ -1,5 +1,9 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useMemo } from 'react';
 
+// REMOVED: import enTranslations from ...
+// This removes the static import that was causing the module resolution error.
+// Translations are now loaded dynamically via fetch.
+
 export const supportedLanguages = {
     en: { flag: '🇬🇧' },
     es: { flag: '🇪🇸' },
@@ -34,52 +38,40 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const [translations, setTranslations] = useState<Record<string, any> | null>(null);
     const [fallbackTranslations, setFallbackTranslations] = useState<Record<string, any> | null>(null);
-    
-    // Fetch fallback English translations once on mount.
-    useEffect(() => {
-        const fetchFallback = async () => {
-            try {
-                // Use relative path for better deployment compatibility
-                const enRes = await fetch('./locales/en.json');
-                if (!enRes.ok) throw new Error('Failed to load English fallback translations.');
-                const enData = await enRes.json();
-                setFallbackTranslations(enData);
-            } catch (error) {
-                console.error("Critical error loading fallback translations:", error);
-                // Set to empty object to prevent a permanent blank screen
-                setFallbackTranslations({});
-            }
-        };
-        fetchFallback();
-    }, []); // Empty dependency array ensures this runs only once.
 
-    // Fetch language-specific translations when lang changes or when fallback is loaded.
     useEffect(() => {
-        // Wait for the fallback translations to be loaded first.
-        if (fallbackTranslations === null) return;
-
-        const fetchTranslations = async () => {
-            if (lang === 'en') {
-                setTranslations(fallbackTranslations);
-                return;
-            }
-            try {
-                // Use relative path for better deployment compatibility
-                const langRes = await fetch(`./locales/${lang}.json`);
-                if (!langRes.ok) {
-                    console.warn(`Failed to load translations for ${lang}. Falling back to English.`);
-                    setTranslations(fallbackTranslations); // Fallback to English data
-                } else {
-                    const langData = await langRes.json();
-                    setTranslations(langData);
+        const loadTranslations = async () => {
+            // Step 1: Ensure English is loaded as the fallback.
+            // This only runs once when the component mounts.
+            let fallbackData = fallbackTranslations;
+            if (!fallbackData) {
+                try {
+                    const res = await fetch('./locales/en.json');
+                    fallbackData = await res.json();
+                    setFallbackTranslations(fallbackData);
+                } catch (e) {
+                    console.error("Failed to load fallback translations (en.json)", e);
+                    fallbackData = {}; // Set empty to prevent retries
+                    setFallbackTranslations(fallbackData);
                 }
-            } catch (error) {
-                console.error(`Error loading translations for ${lang}:`, error);
-                setTranslations(fallbackTranslations); // Fallback to English on any error
+            }
+
+            // Step 2: Load the currently selected language.
+            if (lang === 'en') {
+                setTranslations(fallbackData);
+            } else {
+                try {
+                    const res = await fetch(`./locales/${lang}.json`);
+                    const data = await res.json();
+                    setTranslations(data);
+                } catch (e) {
+                    console.warn(`Failed to load translations for ${lang}. Falling back to English.`, e);
+                    setTranslations(fallbackData);
+                }
             }
         };
 
-        fetchTranslations();
+        loadTranslations();
     }, [lang, fallbackTranslations]);
 
     const setLang = useCallback((newLang: LanguageCode) => {
@@ -92,9 +84,9 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const t = useCallback((key: string, replacements?: Record<string, string | number>): string => {
-        // Wait until translations are loaded to prevent flashing untranslated text
-        if (!translations || !fallbackTranslations) return '';
-
+        if (!translations || !fallbackTranslations) {
+            return key; // Return the key itself if translations aren't loaded
+        }
         let translatedString = getNestedValue(translations, key) || getNestedValue(fallbackTranslations, key) || key;
 
         if (replacements && typeof translatedString === 'string') {
@@ -108,10 +100,9 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const contextValue = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
 
-    // Render children only when translations are ready.
-    // This prevents a flash of untranslated content.
+    // Render children only when translations are loaded to prevent errors and FOUC.
     if (!translations) {
-        return null; // A loading spinner could be returned here instead
+        return null;
     }
 
     return (
