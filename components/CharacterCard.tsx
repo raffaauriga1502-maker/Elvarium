@@ -5,7 +5,6 @@ import BarChart from './BarChart';
 import ImageModal from './ImageModal';
 import { generateCharacterDetail, generateCharacterImage } from '../services/geminiService';
 import * as apiService from '../services/apiService';
-// FIX: Import idbService to handle saving images to IndexedDB.
 import * as idbService from '../services/idbService';
 
 
@@ -447,13 +446,13 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                 ) : (
                     <>
                         <button onClick={() => backgroundFileInputRef.current?.click()} className="bg-secondary/50 hover:bg-secondary text-text-primary p-2 rounded-full transition-colors backdrop-blur-sm" title="Edit Background">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
                         </button>
                         <button onClick={() => setIsEditing(true)} className="bg-secondary/50 hover:bg-secondary text-text-primary p-2 rounded-full transition-colors backdrop-blur-sm" title="Edit Details">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                         </button>
                         <button onClick={() => onDelete(character.id)} className="bg-red-900/50 hover:bg-red-800 text-red-100 p-2 rounded-full transition-colors backdrop-blur-sm" title="Delete Character">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                         </button>
                     </>
                 )}
@@ -467,7 +466,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                     {resolvedMainAppearanceUrl ? (
                         <img src={resolvedMainAppearanceUrl} alt={editedCharacter.name} className="w-full h-full object-cover"/>
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg></div>
+                        <div className="w-full h-full flex items-center justify-center text-slate-600"><svg xmlns="http://www.w3.org/2000/svg" className="h-24 w-24" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg></div>
                     )}
                 </div>
                  {isEditing && canEdit && (
@@ -537,7 +536,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                     <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleAppearanceImageChange(appearance.id, e.target.files[0])}/>
                                     <ResolvedImageDisplay imageKey={appearance.imageUrl} alt={appearance.arcName} defaultIconSize="h-6 w-6" />
                                     <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                                     </label>
                                 </div>
                                 <div className="flex-grow">
@@ -545,7 +544,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                     <input type="text" value={appearance.arcName} onChange={(e) => handleAppearanceChange(appearance.id, 'arcName', e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-sm text-text-primary focus:ring-accent focus:border-accent transition"/>
                                 </div>
                                 <button onClick={() => handleDeleteAppearance(appearance.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors self-end">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                                 </button>
                             </div>
                         )
@@ -637,7 +636,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                            <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleGalleryImageChange(image.id, e.target.files[0])}/>
                                             <ResolvedImageDisplay imageKey={image.imageUrl} alt={image.caption} defaultIconSize="h-8 w-8" />
                                            <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
-                                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                                            </label>
                                        </div>
                                        <div className="flex-grow">
@@ -645,7 +644,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                            <input type="text" value={image.caption} onChange={(e) => handleGalleryCaptionChange(image.id, e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"/>
                                        </div>
                                        <button onClick={() => handleDeleteGalleryImage(image.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                                        </button>
                                    </div>
                                )
@@ -681,7 +680,7 @@ const ResolvedImageDisplay: React.FC<{imageKey?: string, alt: string, defaultIco
     }
     return (
         <div className="w-full h-full flex items-center justify-center text-slate-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className={defaultIconSize} viewBox="http://www.w3.org/2000/svg" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={defaultIconSize} viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
             </svg>
         </div>

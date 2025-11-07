@@ -1,4 +1,3 @@
-
 import { User, Character, CharacterType } from '../types';
 import * as idbService from './idbService';
 
@@ -28,6 +27,18 @@ const removeItem = (key: string): Promise<void> => {
     return Promise.resolve();
 };
 
+const APP_KEYS = [
+    'elvarium_users',
+    'elvarium_current_user',
+    'elvarium_logo',
+    'elvarium_auth_banner',
+    'elvarium_synopsis',
+    'elvarium_synopsis_banner',
+    'elvarium_characters_Main_Protagonist',
+    'elvarium_characters_Allies',
+    'elvarium_characters_Main_Antagonist',
+    'elvarium_characters_Enemies',
+];
 
 // --- User Management ---
 const USERS_KEY = 'elvarium_users';
@@ -152,6 +163,117 @@ export const getCharacters = (characterType: CharacterType): Promise<Character[]
 export const saveCharacters = (characterType: CharacterType, characters: Character[]): Promise<void> => {
     return setItem(getCharacterKey(characterType), characters);
 };
+
+// --- Export / Import / Share ---
+
+const dataUrlToBlob = (dataUrl: string): Blob => {
+    const parts = dataUrl.split(',');
+    if (parts.length < 2) throw new Error("Invalid data URL");
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    if (!mimeMatch || mimeMatch.length < 2) throw new Error("Could not determine mime type");
+    const mimeType = mimeMatch[1];
+    const b64 = atob(parts[1]);
+    let n = b64.length;
+    const u8arr = new Uint8Array(n);
+    while(n--){
+        u8arr[n] = b64.charCodeAt(n);
+    }
+    return new Blob([u8arr], {type: mimeType});
+}
+
+export const exportAllData = async (includeImages = true): Promise<object> => {
+    const localStorageData: { [key: string]: any } = {};
+    for (const key of APP_KEYS) {
+        const data = await getItem(key);
+        if (data !== null) {
+            localStorageData[key] = data;
+        }
+    }
+
+    if (!includeImages) {
+        return {
+            localStorage: localStorageData,
+        };
+    }
+
+    const indexedDBData = await idbService.getAllImagesAsDataUrls();
+    
+    return {
+        localStorage: localStorageData,
+        indexedDB: indexedDBData,
+    };
+};
+
+export const importAllData = async (data: any): Promise<void> => {
+    if (!data || !data.localStorage) {
+        throw new Error("Invalid import file format.");
+    }
+
+    // Clear existing data
+    for (const key of APP_KEYS) {
+        await removeItem(key);
+    }
+    await idbService.clearImages();
+    urlCache.clear();
+
+    // Import localStorage data
+    for (const key in data.localStorage) {
+        if (Object.prototype.hasOwnProperty.call(data.localStorage, key)) {
+            await setItem(key, data.localStorage[key]);
+        }
+    }
+    
+    // Import IndexedDB data if it exists
+    if (data.indexedDB) {
+        for (const key in data.indexedDB) {
+            if (Object.prototype.hasOwnProperty.call(data.indexedDB, key)) {
+                const dataUrl = data.indexedDB[key];
+                const blob = dataUrlToBlob(dataUrl);
+                await idbService.setImage(key, blob);
+            }
+        }
+    }
+};
+
+// --- Compression & Sharing Logic ---
+async function compressData(jsonString: string): Promise<Uint8Array> {
+    const stream = new Blob([jsonString]).stream();
+    const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
+    const reader = compressedStream.getReader();
+    const chunks = [];
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+    }
+    const blob = new Blob(chunks);
+    const buffer = await blob.arrayBuffer();
+    return new Uint8Array(buffer);
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+export const generateShareableLink = async (): Promise<string> => {
+    const data = await exportAllData(false); // Export without images
+    const jsonString = JSON.stringify(data);
+    
+    const compressedBytes = await compressData(jsonString);
+    const base64String = uint8ArrayToBase64(compressedBytes);
+    const urlSafeBase64 = base64String.replace(/\+/g, '-').replace(/\//g, '_');
+
+    const url = new URL(window.location.href);
+    // Use a new prefix to indicate compressed data
+    url.hash = `cdata=${urlSafeBase64}`;
+    return url.toString();
+};
+
 
 // This function is deprecated and will be removed. Use processAndStoreImage.
 export const imageFileToBase64 = (file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.8): Promise<string> => {

@@ -64,3 +64,60 @@ export async function getImage(key: string): Promise<Blob | null> {
     };
   });
 }
+
+export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> {
+    const dbInstance = await getDB();
+    return new Promise((resolve, reject) => {
+        const transaction = dbInstance.transaction(STORE_NAME, 'readonly');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.openCursor();
+        const promises: Promise<void>[] = [];
+        const results: Record<string, string> = {};
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                const p = new Promise<void>((resolveRead, rejectRead) => {
+                    const blob = cursor.value as Blob;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        if (e.target?.result) {
+                            results[cursor.key as string] = e.target.result as string;
+                            resolveRead();
+                        } else {
+                            rejectRead(new Error(`FileReader failed for key ${cursor.key}`));
+                        }
+                    };
+                    reader.onerror = () => rejectRead(reader.error);
+                    reader.readAsDataURL(blob);
+                });
+                promises.push(p);
+                cursor.continue();
+            }
+        };
+
+        transaction.oncomplete = () => {
+            Promise.all(promises).then(() => {
+                resolve(results);
+            }).catch(reject);
+        };
+        
+        transaction.onerror = () => reject(transaction.error);
+    });
+}
+
+export async function clearImages(): Promise<void> {
+    const dbInstance = await getDB();
+    return new Promise((resolve, reject) => {
+        const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.clear();
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => {
+            console.error('Error clearing IndexedDB store:', request.error);
+            reject(request.error);
+        };
+    });
+}
