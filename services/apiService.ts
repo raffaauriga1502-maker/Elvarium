@@ -262,11 +262,13 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 export const fetchSharedWorldData = async (id: string): Promise<any> => {
     try {
-        const response = await fetch(`https://jsonblob.com/api/jsonBlob/${id}`);
+        // Use the .txt extension to get the raw content from dpaste.com
+        const response = await fetch(`https://dpaste.com/${id}.txt`);
         if (!response.ok) {
             throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
         }
-        const data = await response.json();
+        const textData = await response.text();
+        const data = JSON.parse(textData);
         return data;
     } catch (error) {
         console.error("Failed to fetch shared world data:", error);
@@ -294,39 +296,38 @@ export const generateShareableLink = async (): Promise<string> => {
         localStorage: localStorageData,
         indexedDB: indexedDBData,
     };
+    
+    const dataString = JSON.stringify(dataToShare);
 
-    // Use a free, anonymous JSON hosting service to store the large data payload.
-    // NOTE: This relies on a third-party service (jsonblob.com) which has no uptime guarantee.
-    // Data stored here is public and may be deleted at any time by the service.
-    // For a production application, a dedicated, private backend service would be required.
+    // Use a free, anonymous text hosting service (dpaste.com) to store the large data payload.
+    // This service has an open CORS policy, allowing requests from any origin.
     try {
-        const response = await fetch('https://jsonblob.com/api/jsonBlob', {
+        const formData = new URLSearchParams();
+        formData.append('content', dataString);
+        
+        const response = await fetch('https://dpaste.com/api/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify(dataToShare),
+            body: formData,
         });
 
-        if (!response.ok || response.status !== 201) {
+        if (!response.ok) {
             throw new Error(`Sharing service returned an error: ${response.statusText}`);
         }
-
-        const location = response.headers.get('Location');
-        if (!location) {
-            throw new Error('Sharing service did not provide a location for the data.');
-        }
         
-        const blobId = location.split('/').pop();
-        if (!blobId) {
-            throw new Error('Could not parse the shared data ID.');
+        const pasteUrl = await response.text();
+        const pasteId = pasteUrl.split('/').pop();
+
+        if (!pasteId) {
+            throw new Error('Could not parse the shared data ID from dpaste.com response.');
         }
 
         const baseUrl = window.location.origin + window.location.pathname;
         const url = new URL(baseUrl);
         url.search = '';
-        url.hash = `#id=${blobId}`;
+        url.hash = `#id=${pasteId}`;
 
         return url.href;
 
