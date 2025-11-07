@@ -40,20 +40,32 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 // --- End Decompression Helpers ---
 
+// Interface for holding import data from a URL before the user is authenticated.
+interface PendingImport {
+  type: 'id' | 'data';
+  value: string;
+  isCompressed?: boolean;
+}
+
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>({ type: 'home' });
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authBannerUrl, setAuthBannerUrl] = useState<string | null>(null);
+  
+  // State for triggering the import modal for already logged-in users.
   const [importData, setImportData] = useState<string | null>(null);
   const [importIsCompressed, setImportIsCompressed] = useState(false);
   const [sharedWorldId, setSharedWorldId] = useState<string | null>(null);
-  const [isGuestSession, setIsGuestSession] = useState(false);
+
+  // State to hold import info from a URL before user is authenticated
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  
+  const [isGuestSession, setIsGuestSession] = useState(false); // Kept for any other logic, but sharing won't create guests.
   const [appDataVersion, setAppDataVersion] = useState(0);
   const { t } = useI18n();
 
-  // New function to load world-specific assets like the logo and banners
   const loadWorldAssets = async () => {
     const [logoKey, authBannerKey] = await Promise.all([
         apiService.getLogo(),
@@ -63,119 +75,134 @@ const App: React.FC = () => {
     if (authBannerKey) apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
   };
 
-  // This function loads the regular user session data and assets
   const loadInitialData = async () => {
-    const loadUser = async () => {
-        const loggedInUser = await apiService.getCurrentUser();
-        if (loggedInUser) setCurrentUser(loggedInUser);
+    const user = await apiService.getCurrentUser();
+    if (user) {
+        setCurrentUser(user);
+        await loadWorldAssets();
     }
-    // Load assets and user data in parallel
-    await Promise.all([
-        loadWorldAssets(),
-        loadUser(),
-    ]);
   };
   
   useEffect(() => {
     const initializeApp = async () => {
-      // New: Check for remote share link first
+      let foundImport: PendingImport | null = null;
       if (window.location.hash.startsWith('#id=')) {
-        const id = window.location.hash.substring(4);
-        if (id) {
-            setSharedWorldId(id);
-            return;
-        }
+          const id = window.location.hash.substring(4);
+          if (id) foundImport = { type: 'id', value: id };
+      } else if (window.location.hash.startsWith('#cdata=')) {
+          const urlSafeBase64 = window.location.hash.substring(7);
+          if (urlSafeBase64) foundImport = { type: 'data', value: urlSafeBase64, isCompressed: true };
+      } else if (window.location.hash.startsWith('#data=')) {
+          const urlSafeBase64 = window.location.hash.substring(6);
+          if (urlSafeBase64) foundImport = { type: 'data', value: urlSafeBase64, isCompressed: false };
       }
-      // Check for new compressed data format first
-      if (window.location.hash.startsWith('#cdata=')) {
-        const urlSafeBase64 = window.location.hash.substring(7); // #cdata=
-        if (urlSafeBase64) {
-          setImportData(urlSafeBase64);
-          setImportIsCompressed(true);
-          return;
-        }
+
+      if (foundImport) {
+          setPendingImport(foundImport);
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
-      // Fallback for old, uncompressed links
-      if (window.location.hash.startsWith('#data=')) {
-        const urlSafeBase64 = window.location.hash.substring(6);
-        if (urlSafeBase64) {
-          setImportData(urlSafeBase64);
-          setImportIsCompressed(false);
-          return;
-        }
-      }
+
       await loadInitialData();
     };
     initializeApp();
   }, []);
+  
+  // Effect to handle a pending import once we know if a user is logged in or not
+  useEffect(() => {
+    if (!pendingImport) return;
 
-  const handleImportConfirm = async () => {
-    try {
-      let data;
-      if (sharedWorldId) {
-        data = await apiService.fetchSharedWorldData(sharedWorldId);
-      } else if (importData) {
-        let jsonString;
-        const base64String = importData.replace(/-/g, '+').replace(/_/g, '/');
-        
-        if (importIsCompressed) {
-          const compressedBytes = base64ToUint8Array(base64String);
-          jsonString = await decompressData(compressedBytes);
+    if (currentUser) {
+        // Logged-in user: show the confirmation modal to overwrite their data.
+        if (pendingImport.type === 'id') {
+            setSharedWorldId(pendingImport.value);
         } else {
-          // Old way, for backwards compatibility
-          jsonString = decodeURIComponent(escape(window.atob(base64String)));
+            setImportData(pendingImport.value);
+            setImportIsCompressed(!!pendingImport.isCompressed);
         }
-        data = JSON.parse(jsonString);
-      } else {
-        return; // Should not happen
-      }
+    }
+    // If there's no currentUser, AuthView will be shown. `handleLogin` will perform the import.
+  }, [currentUser, pendingImport]);
 
-      await apiService.importAllData(data);
-      
-      // FIX: Load the world assets (logo, etc.) into state after importing.
-      await loadWorldAssets();
-      
-      // Instead of reloading, we create a temporary guest session to view the world
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
-      // Create a temporary guest user
-      const guestUser: User = { username: t('app.guestName') || 'Guest Viewer', role: 'viewer', password: '' };
-      setCurrentUser(guestUser);
-      setIsGuestSession(true);
+  const performImport = async (source: PendingImport) => {
+    try {
+        let data;
+        if (source.type === 'id') {
+            data = await apiService.fetchSharedWorldData(source.value);
+        } else { // 'data'
+            let jsonString;
+            const base64String = source.value.replace(/-/g, '+').replace(/_/g, '/');
+            if (source.isCompressed) {
+                const compressedBytes = base64ToUint8Array(base64String);
+                jsonString = await decompressData(compressedBytes);
+            } else {
+                jsonString = decodeURIComponent(escape(window.atob(base64String)));
+            }
+            data = JSON.parse(jsonString);
+        }
 
-      // Trigger a remount of the app content to force child components to re-fetch data
-      setAppDataVersion(v => v + 1);
-      
-      // Hide the modal
-      setImportData(null);
-      setSharedWorldId(null);
+        await apiService.importAllData(data);
+        await loadWorldAssets();
+        setAppDataVersion(v => v + 1);
 
     } catch (error) {
-      console.error("Failed to import data:", error);
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      // Re-throw with a user-friendly message for the modal to catch
-      throw new Error(t('app.errors.importFailed'));
+        console.error("Failed to import data:", error);
+        throw new Error(t('app.errors.importFailed'));
+    }
+  };
+
+
+  const handleImportConfirm = async () => {
+    const source = sharedWorldId 
+        ? { type: 'id' as const, value: sharedWorldId }
+        : { type: 'data' as const, value: importData!, isCompressed: importIsCompressed };
+    
+    try {
+        await performImport(source);
+        // Clean up modal and pending state
+        setImportData(null);
+        setSharedWorldId(null);
+        setPendingImport(null);
+    } catch (error) {
+        // On error, dismiss the modal and clean up state
+        setImportData(null);
+        setSharedWorldId(null);
+        setPendingImport(null);
+        // Re-throw for the modal to display the error message
+        throw error;
     }
   };
 
   const handleImportDismiss = () => {
     setImportData(null);
-    setImportIsCompressed(false);
     setSharedWorldId(null);
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    loadInitialData(); // Load regular data after dismissing
+    setPendingImport(null); // The user cancelled, so clear the pending task.
   };
 
   const handleLogin = async (user: User) => {
+    // Set the new user as current
     setCurrentUser(user);
     await apiService.saveCurrentUser(user);
-    setIsGuestSession(false); // A real login ends any guest session
+    setIsGuestSession(false);
+
+    // If there was a pending import, perform it for the new user.
+    if (pendingImport) {
+        try {
+            await performImport(pendingImport);
+        } catch (error: any) {
+            // If import fails after login, alert the user but let them continue.
+            alert(error.message || t('app.errors.importFailed'));
+        } finally {
+            // Always clear the pending import after attempting it.
+            setPendingImport(null);
+        }
+    }
   };
 
   const handleLogout = async () => {
     setCurrentUser(null);
     await apiService.removeCurrentUser();
-    setIsGuestSession(false); // Reset guest state on logout
+    setIsGuestSession(false);
   };
 
   const handleLogoUpload = async (file: File) => {
