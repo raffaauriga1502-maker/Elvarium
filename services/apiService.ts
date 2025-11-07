@@ -261,8 +261,27 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 }
 
 export const generateShareableLink = async (): Promise<string> => {
-    const data = await exportAllData(false); // Export without images
-    const jsonString = JSON.stringify(data);
+    // Manually build the data object to ensure user data is excluded and image data is included.
+    const SHAREABLE_LOCAL_STORAGE_KEYS = APP_KEYS.filter(
+        key => key !== 'elvarium_users' && key !== 'elvarium_current_user'
+    );
+    
+    const localStorageData: { [key: string]: any } = {};
+    for (const key of SHAREABLE_LOCAL_STORAGE_KEYS) {
+        const data = await getItem(key);
+        if (data !== null) {
+            localStorageData[key] = data;
+        }
+    }
+    
+    const indexedDBData = await idbService.getAllImagesAsDataUrls();
+    
+    const dataToShare = {
+        localStorage: localStorageData,
+        indexedDB: indexedDBData,
+    };
+
+    const jsonString = JSON.stringify(dataToShare);
     
     const compressedBytes = await compressData(jsonString);
     const base64String = uint8ArrayToBase64(compressedBytes);
