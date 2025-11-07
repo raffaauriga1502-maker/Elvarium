@@ -1,7 +1,19 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { Character } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy-initialized instance to prevent app crash on load
+let ai: GoogleGenAI | null = null;
+
+function getAiInstance(): GoogleGenAI {
+  if (!ai) {
+    if (!process.env.API_KEY) {
+      // This error will be caught by the calling functions and shown to the user.
+      throw new Error("API_KEY environment variable not set. Please configure it in your Vercel project settings.");
+    }
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  }
+  return ai;
+}
 
 const generationFields: (keyof Character)[] = ['about', 'biography', 'personality', 'appearanceDescription', 'powers', 'relationships', 'trivia', 'name', 'status', 'birthplace', 'age'];
 
@@ -31,15 +43,16 @@ ${context}
 ## Generate the "${detailToGenerate}" section:`;
 
   try {
+    const ai = getAiInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
     return response.text.trim();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating character detail:", error);
-    // Provide a user-friendly error message
-    return "Error: Could not generate content from AI. Please check the console for more details.";
+    // Provide a user-friendly error message, which now includes the API key error.
+    return `Error: Could not generate content from AI. ${error.message || "Please check the console for more details."}`;
   }
 }
 
@@ -60,6 +73,7 @@ Key details: ${character.about || 'A mysterious figure.'}
 Style: Digital painting, fantasy art, detailed, character concept art, vibrant colors, epic.`;
 
   try {
+    const ai = getAiInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts: [{ text: prompt }] },
@@ -75,8 +89,8 @@ Style: Digital painting, fantasy art, detailed, character concept art, vibrant c
     }
     throw new Error("No image data found in the response.");
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error generating character image:", error);
-    throw new Error("Failed to generate image from AI. See console for details.");
+    throw new Error(`Failed to generate image from AI. ${error.message || "See console for details."}`);
   }
 }
