@@ -35,30 +35,47 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [translations, setTranslations] = useState<Record<string, any> | null>(null);
     const [fallbackTranslations, setFallbackTranslations] = useState<Record<string, any> | null>(null);
     
+    // Fetch fallback English translations once on mount.
     useEffect(() => {
-        const fetchTranslations = async () => {
+        const fetchFallback = async () => {
             try {
-                const [enRes, langRes] = await Promise.all([
-                    fetch('/locales/en.json'),
-                    // Avoid fetching english twice if it's the selected language
-                    lang === 'en' ? Promise.resolve(null) : fetch(`/locales/${lang}.json`)
-                ]);
-
+                // Use relative path for better deployment compatibility
+                const enRes = await fetch('./locales/en.json');
                 if (!enRes.ok) throw new Error('Failed to load English fallback translations.');
                 const enData = await enRes.json();
                 setFallbackTranslations(enData);
+            } catch (error) {
+                console.error("Critical error loading fallback translations:", error);
+                // Set to empty object to prevent a permanent blank screen
+                setFallbackTranslations({});
+            }
+        };
+        fetchFallback();
+    }, []); // Empty dependency array ensures this runs only once.
 
-                if (langRes) {
-                    if (!langRes.ok) throw new Error(`Failed to load translations for ${lang}.`);
+    // Fetch language-specific translations when lang changes or when fallback is loaded.
+    useEffect(() => {
+        // Wait for the fallback translations to be loaded first.
+        if (fallbackTranslations === null) return;
+
+        const fetchTranslations = async () => {
+            if (lang === 'en') {
+                setTranslations(fallbackTranslations);
+                return;
+            }
+            try {
+                // Use relative path for better deployment compatibility
+                const langRes = await fetch(`./locales/${lang}.json`);
+                if (!langRes.ok) {
+                    console.warn(`Failed to load translations for ${lang}. Falling back to English.`);
+                    setTranslations(fallbackTranslations); // Fallback to English data
+                } else {
                     const langData = await langRes.json();
                     setTranslations(langData);
-                } else {
-                    setTranslations(enData);
                 }
             } catch (error) {
-                console.error(error);
-                // On error, try to set fallback if available, otherwise empty
-                setTranslations(fallbackTranslations || {});
+                console.error(`Error loading translations for ${lang}:`, error);
+                setTranslations(fallbackTranslations); // Fallback to English on any error
             }
         };
 
@@ -91,9 +108,10 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const contextValue = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
 
-    // Render children only when translations are ready to avoid a flash of untranslated content
-    if (!translations || !fallbackTranslations) {
-        return null; // Or a full-screen loader component
+    // Render children only when translations are ready.
+    // This prevents a flash of untranslated content.
+    if (!translations) {
+        return null; // A loading spinner could be returned here instead
     }
 
     return (
