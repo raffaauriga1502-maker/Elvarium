@@ -53,15 +53,27 @@ const App: React.FC = () => {
   const [appDataVersion, setAppDataVersion] = useState(0);
   const { t } = useI18n();
 
-  const loadInitialData = async () => {
-    const [logoKey, loggedInUser, authBannerKey] = await Promise.all([
+  // New function to load world-specific assets like the logo and banners
+  const loadWorldAssets = async () => {
+    const [logoKey, authBannerKey] = await Promise.all([
         apiService.getLogo(),
-        apiService.getCurrentUser(),
         apiService.getAuthBanner(),
     ]);
     if (logoKey) apiService.resolveImageUrl(logoKey).then(setLogoImageUrl);
-    if (loggedInUser) setCurrentUser(loggedInUser);
     if (authBannerKey) apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
+  };
+
+  // This function loads the regular user session data and assets
+  const loadInitialData = async () => {
+    const loadUser = async () => {
+        const loggedInUser = await apiService.getCurrentUser();
+        if (loggedInUser) setCurrentUser(loggedInUser);
+    }
+    // Load assets and user data in parallel
+    await Promise.all([
+        loadWorldAssets(),
+        loadUser(),
+    ]);
   };
   
   useEffect(() => {
@@ -119,6 +131,9 @@ const App: React.FC = () => {
       }
 
       await apiService.importAllData(data);
+      
+      // FIX: Load the world assets (logo, etc.) into state after importing.
+      await loadWorldAssets();
       
       // Instead of reloading, we create a temporary guest session to view the world
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
