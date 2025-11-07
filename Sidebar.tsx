@@ -209,7 +209,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
         <div className="flex flex-col h-full p-4">
           {/* Logo Section */}
           <div 
-            className={`relative w-32 h-32 mx-auto mb-4 rounded-full border-4 border-secondary shadow-lg overflow-hidden group ${userRole === 'admin' ? 'cursor-pointer hover:border-accent' : ''} transition-colors`}
+            className={`relative w-32 h-32 mx-auto mb-4 rounded-xl border-4 border-secondary shadow-lg overflow-hidden group ${userRole === 'admin' ? 'cursor-pointer hover:border-accent' : ''} transition-colors`}
             onClick={handleLogoImageClick}
           >
             <input type="file" ref={logoFileInputRef} onChange={handleLogoFileChange} accept="image/*" className="hidden"/>
