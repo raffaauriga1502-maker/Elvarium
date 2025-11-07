@@ -9,9 +9,10 @@ interface HeaderProps {
   onMenuClick: () => void;
   user: User;
   onLogout: () => void;
+  isGuestSession?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout, isGuestSession = false }) => {
   const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
   const { t } = useI18n();
 
@@ -52,12 +53,14 @@ const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout }) =
             </svg>
           )}
         </div>
-        <button 
-          onClick={onLogout}
-          className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors text-sm"
-        >
-          {t('header.logout')}
-        </button>
+        {!isGuestSession && (
+            <button 
+              onClick={onLogout}
+              className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors text-sm"
+            >
+              {t('header.logout')}
+            </button>
+        )}
        </div>
     </header>
   );

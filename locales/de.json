@@ -212,6 +212,7 @@
     }
   },
   "app": {
+    "guestName": "Gast",
     "errors": {
       "logoProcessing": "Beim Verarbeiten des Logobildes ist ein Fehler aufgetreten. Es könnte ein nicht unterstütztes Format sein.",
       "authBannerProcessing": "Beim Verarbeiten des Authentifizierungs-Bannerbildes ist ein Fehler aufgetreten. Es könnte ein nicht unterstütztes Format sein.",

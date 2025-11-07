@@ -212,6 +212,7 @@
     }
   },
   "app": {
+    "guestName": "Invité",
     "errors": {
       "logoProcessing": "Une erreur s'est produite lors du traitement de l'image du logo. Le format est peut-être non pris en charge.",
       "authBannerProcessing": "Une erreur s'est produite lors du traitement de l'image de la bannière d'authentification. Le format est peut-être non pris en charge.",

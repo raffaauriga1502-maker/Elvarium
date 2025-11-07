@@ -212,6 +212,7 @@
     }
   },
   "app": {
+    "guestName": "Guest Viewer",
     "errors": {
       "logoProcessing": "There was an error processing the logo image. It may be an unsupported format.",
       "authBannerProcessing": "There was an error processing the auth banner image. It may be an unsupported format.",

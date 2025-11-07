@@ -49,6 +49,8 @@ const App: React.FC = () => {
   const [importData, setImportData] = useState<string | null>(null);
   const [importIsCompressed, setImportIsCompressed] = useState(false);
   const [sharedWorldId, setSharedWorldId] = useState<string | null>(null);
+  const [isGuestSession, setIsGuestSession] = useState(false);
+  const [appDataVersion, setAppDataVersion] = useState(0);
   const { t } = useI18n();
 
   const loadInitialData = async () => {
@@ -117,10 +119,22 @@ const App: React.FC = () => {
       }
 
       await apiService.importAllData(data);
-      setTimeout(() => {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-          window.location.reload();
-      }, 2000);
+      
+      // Instead of reloading, we create a temporary guest session to view the world
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+      // Create a temporary guest user
+      const guestUser: User = { username: t('app.guestName') || 'Guest Viewer', role: 'viewer', password: '' };
+      setCurrentUser(guestUser);
+      setIsGuestSession(true);
+
+      // Trigger a remount of the app content to force child components to re-fetch data
+      setAppDataVersion(v => v + 1);
+      
+      // Hide the modal
+      setImportData(null);
+      setSharedWorldId(null);
+
     } catch (error) {
       console.error("Failed to import data:", error);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -140,11 +154,13 @@ const App: React.FC = () => {
   const handleLogin = async (user: User) => {
     setCurrentUser(user);
     await apiService.saveCurrentUser(user);
+    setIsGuestSession(false); // A real login ends any guest session
   };
 
   const handleLogout = async () => {
     setCurrentUser(null);
     await apiService.removeCurrentUser();
+    setIsGuestSession(false); // Reset guest state on logout
   };
 
   const handleLogoUpload = async (file: File) => {
@@ -232,6 +248,7 @@ const App: React.FC = () => {
           onLogoUpload={handleLogoUpload}
           onAuthBannerUpload={handleAuthBannerUpload}
           userRole={currentUser.role}
+          isGuestSession={isGuestSession}
         />
         <div className="flex-1 flex flex-col overflow-hidden">
           <Header 
@@ -239,9 +256,10 @@ const App: React.FC = () => {
             onMenuClick={() => setSidebarOpen(!isSidebarOpen)}
             user={currentUser}
             onLogout={handleLogout}
+            isGuestSession={isGuestSession}
           />
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-primary p-4 md:p-8">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto" key={appDataVersion}>
               {renderContent()}
             </div>
           </main>

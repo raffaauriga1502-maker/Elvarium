@@ -212,6 +212,7 @@
     }
   },
   "app": {
+    "guestName": "Tamu",
     "errors": {
       "logoProcessing": "Terjadi kesalahan saat memproses gambar logo. Format mungkin tidak didukung.",
       "authBannerProcessing": "Terjadi kesalahan saat memproses gambar banner otentikasi. Format mungkin tidak didukung.",

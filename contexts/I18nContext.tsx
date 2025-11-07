@@ -46,7 +46,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             let fallbackData = fallbackTranslations;
             if (!fallbackData) {
                 try {
-                    const res = await fetch('./locales/en.json');
+                    const res = await fetch('/locales/en.json');
                     fallbackData = await res.json();
                     setFallbackTranslations(fallbackData);
                 } catch (e) {
@@ -61,7 +61,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setTranslations(fallbackData);
             } else {
                 try {
-                    const res = await fetch(`./locales/${lang}.json`);
+                    const res = await fetch(`/locales/${lang}.json`);
                     const data = await res.json();
                     setTranslations(data);
                 } catch (e) {

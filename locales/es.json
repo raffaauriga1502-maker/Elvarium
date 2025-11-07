@@ -212,6 +212,7 @@
     }
   },
   "app": {
+    "guestName": "Visitante",
     "errors": {
       "logoProcessing": "Hubo un error al procesar la imagen del logo. Puede ser un formato no compatible.",
       "authBannerProcessing": "Hubo un error al procesar la imagen del banner de autenticación. Puede ser un formato no compatible.",
