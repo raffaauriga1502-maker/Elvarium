@@ -47,6 +47,7 @@ const App: React.FC = () => {
   const [authBannerUrl, setAuthBannerUrl] = useState<string | null>(null);
   const [importData, setImportData] = useState<string | null>(null);
   const [importIsCompressed, setImportIsCompressed] = useState(false);
+  const [sharedWorldId, setSharedWorldId] = useState<string | null>(null);
 
   const loadInitialData = async () => {
     const [logoKey, loggedInUser, authBannerKey] = await Promise.all([
@@ -61,6 +62,14 @@ const App: React.FC = () => {
   
   useEffect(() => {
     const initializeApp = async () => {
+      // New: Check for remote share link first
+      if (window.location.hash.startsWith('#id=')) {
+        const id = window.location.hash.substring(4);
+        if (id) {
+            setSharedWorldId(id);
+            return;
+        }
+      }
       // Check for new compressed data format first
       if (window.location.hash.startsWith('#cdata=')) {
         const urlSafeBase64 = window.location.hash.substring(7); // #cdata=
@@ -85,35 +94,43 @@ const App: React.FC = () => {
   }, []);
 
   const handleImportConfirm = async () => {
-    if (!importData) return;
     try {
-      let jsonString;
-      const base64String = importData.replace(/-/g, '+').replace(/_/g, '/');
-      
-      if (importIsCompressed) {
-        const compressedBytes = base64ToUint8Array(base64String);
-        jsonString = await decompressData(compressedBytes);
+      let data;
+      if (sharedWorldId) {
+        data = await apiService.fetchSharedWorldData(sharedWorldId);
+      } else if (importData) {
+        let jsonString;
+        const base64String = importData.replace(/-/g, '+').replace(/_/g, '/');
+        
+        if (importIsCompressed) {
+          const compressedBytes = base64ToUint8Array(base64String);
+          jsonString = await decompressData(compressedBytes);
+        } else {
+          // Old way, for backwards compatibility
+          jsonString = decodeURIComponent(escape(window.atob(base64String)));
+        }
+        data = JSON.parse(jsonString);
       } else {
-        // Old way, for backwards compatibility
-        jsonString = decodeURIComponent(escape(window.atob(base64String)));
+        return; // Should not happen
       }
 
-      const data = JSON.parse(jsonString);
       await apiService.importAllData(data);
       setTimeout(() => {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
           window.location.reload();
       }, 2000);
     } catch (error) {
-      console.error("Failed to import data from URL:", error);
+      console.error("Failed to import data:", error);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      throw new Error("Could not load the shared world. The link might be corrupted or invalid.");
+      // Re-throw with a user-friendly message for the modal to catch
+      throw new Error("Could not load the shared world. The link might be corrupted, expired, or invalid.");
     }
   };
 
   const handleImportDismiss = () => {
     setImportData(null);
     setImportIsCompressed(false);
+    setSharedWorldId(null);
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     loadInitialData(); // Load regular data after dismissing
   };
@@ -226,11 +243,11 @@ const App: React.FC = () => {
 
   return (
     <>
-      {importData && (
+      {(importData || sharedWorldId) && (
         <ImportModal onConfirm={handleImportConfirm} onDismiss={handleImportDismiss} />
       )}
       {/* Render app content only when the modal is not active to prevent flashing of old content */}
-      {!importData && renderAppContent()}
+      {!(importData || sharedWorldId) && renderAppContent()}
     </>
   );
 };

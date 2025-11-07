@@ -260,7 +260,19 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     return btoa(binary);
 }
 
-const MAX_URL_SAFE_BASE64_LENGTH = 15000; // A safe limit for URL hash data to prevent browser crashes.
+export const fetchSharedWorldData = async (id: string): Promise<any> => {
+    try {
+        const response = await fetch(`https://jsonblob.com/api/jsonBlob/${id}`);
+        if (!response.ok) {
+            throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Failed to fetch shared world data:", error);
+        throw new Error("The shared world data could not be retrieved. The link may have expired or the sharing service is unavailable.");
+    }
+};
 
 export const generateShareableLink = async (): Promise<string> => {
     // Manually build the data object to ensure user data is excluded and image data is included.
@@ -283,28 +295,45 @@ export const generateShareableLink = async (): Promise<string> => {
         indexedDB: indexedDBData,
     };
 
-    const jsonString = JSON.stringify(dataToShare);
-    
-    const compressedBytes = await compressData(jsonString);
-    const base64String = uint8ArrayToBase64(compressedBytes);
-    const urlSafeBase64 = base64String.replace(/\+/g, '-').replace(/\//g, '_');
+    // Use a free, anonymous JSON hosting service to store the large data payload.
+    // NOTE: This relies on a third-party service (jsonblob.com) which has no uptime guarantee.
+    // Data stored here is public and may be deleted at any time by the service.
+    // For a production application, a dedicated, private backend service would be required.
+    try {
+        const response = await fetch('https://jsonblob.com/api/jsonBlob', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(dataToShare),
+        });
 
-    // Prevent creation of links that are too long for browsers to handle
-    if (urlSafeBase64.length > MAX_URL_SAFE_BASE64_LENGTH) {
-        throw new Error("This world is too large to be shared via a link. Please use the 'Download File' feature instead.");
+        if (!response.ok || response.status !== 201) {
+            throw new Error(`Sharing service returned an error: ${response.statusText}`);
+        }
+
+        const location = response.headers.get('Location');
+        if (!location) {
+            throw new Error('Sharing service did not provide a location for the data.');
+        }
+        
+        const blobId = location.split('/').pop();
+        if (!blobId) {
+            throw new Error('Could not parse the shared data ID.');
+        }
+
+        const baseUrl = window.location.origin + window.location.pathname;
+        const url = new URL(baseUrl);
+        url.search = '';
+        url.hash = `#id=${blobId}`;
+
+        return url.href;
+
+    } catch (error) {
+        console.error("Failed to upload world data for sharing:", error);
+        throw new Error("Could not create a shareable link. The external sharing service may be down. Please try again later or use the 'Download File' feature.");
     }
-
-    // Use window.location to construct the base URL. This is more reliable than
-    // document.baseURI, especially when the app is running in an iframe.
-    const baseUrl = window.location.origin + window.location.pathname;
-    
-    const url = new URL(baseUrl);
-    
-    // Clear any existing query params or hash from the base URL.
-    url.search = '';
-    url.hash = `#cdata=${urlSafeBase64}`;
-
-    return url.href;
 };
 
 

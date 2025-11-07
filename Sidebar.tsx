@@ -151,15 +151,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
       setTimeout(() => setShareLinkStatus('Copy Share Link'), 3000);
     } catch (error: any) {
         console.error("Failed to generate share link:", error);
-        // Check for our specific error message to provide better feedback
-        if (error.message && error.message.includes("too large to be shared")) {
-            setShareLinkStatus('Too large for link');
-        } else {
-            setShareLinkStatus('Error!');
-        }
+        setShareLinkStatus('Error!');
         // The API service now throws a user-friendly error, so we can display it directly.
         alert(error.message || "An unknown error occurred while generating the link.");
-        setTimeout(() => setShareLinkStatus('Copy Share Link'), 5000); // Longer timeout for the error message
+        setTimeout(() => setShareLinkStatus('Copy Share Link'), 5000);
     }
   };
 
