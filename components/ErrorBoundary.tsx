@@ -10,10 +10,16 @@ interface State {
 }
 
 class ErrorBoundary extends React.Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null,
-  };
+  // Explicitly declare state to fix TS error "Property 'state' does not exist..."
+  public state: State;
+
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+  }
 
   public static getDerivedStateFromError(error: Error): State {
     // Update state so the next render will show the fallback UI.
@@ -60,6 +66,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
+    // Cast this to any to access props, fixing "Property 'props' does not exist"
     return (this as any).props.children;
   }
 }
