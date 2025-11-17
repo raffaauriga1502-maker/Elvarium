@@ -6,7 +6,8 @@ import BarChart from './BarChart';
 import ImageModal from './ImageModal';
 import * as apiService from '../services/apiService';
 import * as idbService from '../services/idbService';
-import { useI18n } from '../contexts/I18nContext';
+import * as geminiService from '../services/geminiService';
+import { useI18n, supportedLanguages } from '../contexts/I18nContext';
 
 
 interface CharacterCardProps {
@@ -48,8 +49,23 @@ const EditableInfoBlock: React.FC<{
     isEditing: boolean;
     name: keyof Pick<Character, 'birthplace' | 'age' | 'height' | 'weight' | 'bloodType' | 'status'>;
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-}> = ({ title, content, isEditing, name, onChange }) => {
+    displayContent?: string; // Optional override for display
+}> = ({ title, content, isEditing, name, onChange, displayContent }) => {
     const { t } = useI18n();
+
+    // Helper to map current content to standard keys for the select value
+    const getStandardStatusKey = (val: string) => {
+        const s = val.toLowerCase();
+        const aliveTerms = ['alive', 'vivo', 'vivant', 'lebendig', 'hidup'];
+        const deceasedTerms = ['deceased', 'fallecido', 'décédé', 'verstorben', 'meninggal'];
+        const unknownTerms = ['unknown', 'desconocido', 'inconnu', 'unbekannt', 'tidak diketahui'];
+        
+        if (aliveTerms.includes(s)) return 'Alive';
+        if (deceasedTerms.includes(s)) return 'Deceased';
+        if (unknownTerms.includes(s)) return 'Unknown';
+        return 'Alive'; // Default fallback
+    };
+
     return (
         <div className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg">
             <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{title}</h4>
@@ -57,13 +73,13 @@ const EditableInfoBlock: React.FC<{
                 name === 'status' ? (
                     <select
                         name={name}
-                        value={content}
+                        value={getStandardStatusKey(content)}
                         onChange={onChange}
                         className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"
                     >
-                        <option value={t('characterCard.statusOptions.alive')}>{t('characterCard.statusOptions.alive')}</option>
-                        <option value={t('characterCard.statusOptions.deceased')}>{t('characterCard.statusOptions.deceased')}</option>
-                        <option value={t('characterCard.statusOptions.unknown')}>{t('characterCard.statusOptions.unknown')}</option>
+                        <option value="Alive">{t('characterCard.statusOptions.alive')}</option>
+                        <option value="Deceased">{t('characterCard.statusOptions.deceased')}</option>
+                        <option value="Unknown">{t('characterCard.statusOptions.unknown')}</option>
                     </select>
                 ) : (
                     <input
@@ -75,7 +91,9 @@ const EditableInfoBlock: React.FC<{
                     />
                 )
             ) : (
-                <p className={`text-text-primary whitespace-pre-wrap min-h-[1.5rem] ${content === t('characterCard.statusOptions.deceased') ? 'text-red-400 font-semibold' : ''}`}>{content}</p>
+                <p className={`text-text-primary whitespace-pre-wrap min-h-[1.5rem] ${content === 'Deceased' || displayContent === t('characterCard.statusOptions.deceased') ? 'text-red-400 font-semibold' : ''}`}>
+                    {displayContent || content}
+                </p>
             )}
         </div>
     );
@@ -131,7 +149,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
   const [newRelationName, setNewRelationName] = useState('');
   const [newRelationDesc, setNewRelationDesc] = useState('');
 
-  const { t } = useI18n();
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  const { t, lang } = useI18n();
   const displayedCharacterId = useRef<string | null>(null);
   
   const resolvedBgUrl = useResolvedImageUrl(editedCharacter.backgroundImageUrl);
@@ -169,6 +189,17 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
     ? `${editedCharacter.name} - ${currentOutfit.arcName}` 
     : `${editedCharacter.name} - ${currentPortrait?.name}`;
 
+  const getLocalizedStatus = (status: string) => {
+       const s = status.toLowerCase();
+       const aliveTerms = ['alive', 'vivo', 'vivant', 'lebendig', 'hidup'];
+       const deceasedTerms = ['deceased', 'fallecido', 'décédé', 'verstorben', 'meninggal'];
+       const unknownTerms = ['unknown', 'desconocido', 'inconnu', 'unbekannt', 'tidak diketahui'];
+
+       if (aliveTerms.includes(s)) return t('characterCard.statusOptions.alive');
+       if (deceasedTerms.includes(s)) return t('characterCard.statusOptions.deceased');
+       if (unknownTerms.includes(s)) return t('characterCard.statusOptions.unknown');
+       return status;
+  };
 
   const handleBackgroundFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -395,6 +426,23 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
     }));
   };
 
+  const handleTranslate = async () => {
+    setIsTranslating(true);
+    try {
+        const targetLangName = t(`languages.${lang}`);
+        const translatedFields = await geminiService.translateCharacterFields(editedCharacter, targetLangName);
+        setEditedCharacter(prev => ({
+            ...prev,
+            ...translatedFields
+        }));
+    } catch (error) {
+        console.error("Translation error:", error);
+        alert("Translation failed. Please try again.");
+    } finally {
+        setIsTranslating(false);
+    }
+  };
+
   const handleSave = () => {
     onUpdate(editedCharacter);
     setIsEditing(false);
@@ -419,7 +467,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
       };
     
     const allDossierSections: { id: string; label: string; name: keyof Character | 'appearance' | 'stats' | 'gallery' }[] = [
-        { id: 'about', label: t('characterCard.about'), name: 'about' },
+        { id: 'about', label: t('characterCard.generalInfo'), name: 'about' }, // Renamed Label
         { id: 'biography', label: t('characterCard.biography'), name: 'biography' },
         { id: 'personality', label: t('characterCard.personality'), name: 'personality' },
         { id: 'appearance', label: t('characterCard.appearance'), name: 'appearanceDescription' },
@@ -464,9 +512,27 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         {canEdit && <input type="file" ref={backgroundFileInputRef} onChange={handleBackgroundFileChange} accept="image/*" className="hidden"/>}
         
         {canEdit && (
-            <div className="absolute top-4 right-4 z-20 flex gap-2">
+            <div className="absolute top-4 right-4 z-20 flex flex-wrap gap-2 justify-end">
                 {isEditing ? (
                     <>
+                        <button 
+                            onClick={handleTranslate} 
+                            disabled={isTranslating}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 px-3 rounded-md transition-colors text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={t('characterCard.translateButton', { lang: t(`languages.${lang}`) })}
+                        >
+                            {isTranslating ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    {t('characterCard.translating')}
+                                </>
+                            ) : (
+                                <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7 2a1 1 0 011 1v1h3a1 1 0 110 2H9.578a18.89 18.89 0 01-1.724 4.78c.279.16.579.31.9.446.32.137.656.268 1.01.393.354.125.717.24 1.09.343.373.104.753.198 1.14.284.386.086.78.159 1.182.218.402.06.81.107 1.224.143.414.037.832.06 1.256.07.423.01.85.01 1.28.004.43-.006.863-.025 1.3-.056.437-.03.874-.074 1.313-.13.439-.056.879-.125 1.32-.206.441-.081.884-.175 1.328-.282.444-.107.89-.226 1.336-.358.447-.132.896-.275 1.347-.43.45-.155.902-.322 1.355-.501.454-.18.908-.37 1.364-.57.456-.2.913-.411 1.37-.633L20 9.65a.5.5 0 00-.216-.908l-.006-.002a.5.5 0 00-.28.028c-.466.226-.931.44-1.396.643-.465.203-.929.396-1.392.578-.462.182-.923.352-1.382.51-.458.158-.915.305-1.37.44-.454.135-.906.257-1.357.366-.45.109-.9.205-1.348.288-.447.083-.893.153-1.338.21-.444.057-.887.102-1.33.135-.442.033-.883.053-1.322.06-.438.007-.876 0-1.312-.018-.435-.018-.868-.048-1.3-.09-.43-.042-.858-.095-1.284-.16-.425-.064-.848-.14-1.268-.228-.42-.088-.837-.188-1.25-.3-.412-.112-.82-.236-1.224-.372a15.14 15.14 0 01-1.13-.42 16.86 16.86 0 002.62-5.674h.906a1 1 0 110-2H11V3a1 1 0 011-1h5zM6 7.938c.35-.034.697-.08 1.04-.138.343-.058.683-.128 1.02-.21.336-.082.668-.177.996-.284.328-.107.651-.226.97-.357.318-.13.631-.272.94-.425.308-.153.61-.318.907-.495.297-.177.588-.366.873-.566l.824.566a.5.5 0 00.786-.554l-.005-.007a.5.5 0 00-.267-.216l-1.23-.845a13.65 13.65 0 00-1.16 1.004c-.364.353-.71.726-1.038 1.118-.328.392-.637.802-.927 1.23-.29.428-.56.873-.81 1.335-.25.462-.48.94-.69 1.434-.21.494-.4 1.004-.57 1.53-.17.526-.32 1.067-.45 1.624-.13.557-.24 1.128-.33 1.713-.09.585-.16 1.184-.21 1.796-.05.612-.08 1.238-.09 1.876 0 .638.02 1.288.06 1.95.04.662.1 1.336.18 2.022.08.686.18 1.383.3 2.09.12.707.26 1.425.42 2.154l-1.96.392a35.2 35.2 0 01-.86-4.41 36.95 36.95 0 01-.2-4.036c.013-1.335.11-2.648.29-3.934.18-1.286.445-2.545.794-3.773z" clipRule="evenodd" /></svg>
+                                    {t('characterCard.translateButton', { lang: t(`languages.${lang}`) })}
+                                </>
+                            )}
+                        </button>
                         <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-1 px-3 rounded-md transition-colors text-sm">{t('characterCard.save')}</button>
                         <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-1 px-3 rounded-md transition-colors text-sm">{t('characterCard.cancel')}</button>
                     </>
@@ -667,7 +733,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             <div ref={dossierContainerRef} className="bg-primary/50 backdrop-blur-sm p-4 rounded-b-lg overflow-y-auto flex-grow h-[65vh] md:h-auto scroll-pt-4">
                 <section id="dossier-about" className="mb-8">
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                        <EditableInfoBlock title={t('characterCard.status')} content={editedCharacter.status} name="status" isEditing={isEditing} onChange={handleInputChange}/>
+                        <EditableInfoBlock title={t('characterCard.status')} content={editedCharacter.status} displayContent={getLocalizedStatus(editedCharacter.status)} name="status" isEditing={isEditing} onChange={handleInputChange}/>
                         <EditableInfoBlock title={t('characterCard.birthplace')} content={editedCharacter.birthplace} name="birthplace" isEditing={isEditing} onChange={handleInputChange}/>
                         <EditableInfoBlock title={t('characterCard.age')} content={editedCharacter.age} name="age" isEditing={isEditing} onChange={handleInputChange}/>
                         <EditableInfoBlock title={t('characterCard.height')} content={editedCharacter.height} name="height" isEditing={isEditing} onChange={handleInputChange}/>
@@ -688,7 +754,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                             <p className="text-xs text-text-secondary mt-1">{t('characterCard.arcsHelpText')}</p>
                         </div>
                     )}
-                    <SimpleEditableSection title={t('characterCard.about')} content={editedCharacter.about} name="about" isEditing={isEditing} onChange={handleInputChange}/>
+                    {/* The free-text About section is intentionally removed here as requested */}
                 </section>
                 {!editedCharacter.isNpc && (
                     <>

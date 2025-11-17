@@ -1,3 +1,4 @@
+
 {
   "header": {
     "titleHome": "Home",
@@ -86,6 +87,7 @@
     "noCharactersYet": "No characters created yet. {cta}",
     "adminCta": "Click \"Add Character\" to begin.",
     "viewDetailsFor": "View details for {characterName}",
+    "npcSection": "NPCs",
     "aria": {
       "filterByArc": "Filter characters by arc"
     },
@@ -113,6 +115,8 @@
     "editBackground": "Edit Background",
     "editDetails": "Edit Details",
     "deleteCharacter": "Delete Character",
+    "translateButton": "Translate to {lang}",
+    "translating": "Translating...",
     "portrait": "Portrait",
     "outfit": "Outfit",
     "editPortraits": "Edit Portraits",
@@ -132,7 +136,8 @@
     "associatedArcs": "Associated Arcs",
     "arcsPlaceholder": "e.g., The Beginning, The War, Aftermath",
     "arcsHelpText": "Separate arc names with a comma.",
-    "about": "About",
+    "about": "General Info",
+    "generalInfo": "General Info",
     "biography": "Biography",
     "personality": "Personality",
     "appearance": "Appearance",
@@ -166,7 +171,14 @@
     },
     "noInformation": "No information provided.",
     "newPortraitName": "New Portrait",
-    "newArcName": "New Arc"
+    "newArcName": "New Arc",
+    "relationshipNotes": "Relationship Notes",
+    "addRelationship": "Add Relationship",
+    "targetCharacter": "Target Character",
+    "description": "Description",
+    "relationPlaceholder": "e.g. Rival, Sibling, Enemy",
+    "isNpc": "NPC",
+    "markAsNpc": "Mark as NPC"
   },
   "profile": {
     "profileTitle": "{username}'s Profile",

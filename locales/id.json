@@ -1,3 +1,4 @@
+
 {
   "header": {
     "titleHome": "Beranda",
@@ -86,8 +87,13 @@
     "noCharactersYet": "Belum ada karakter yang dibuat. {cta}",
     "adminCta": "Klik \"Tambah Karakter\" untuk memulai.",
     "viewDetailsFor": "Lihat detail untuk {characterName}",
+    "npcSection": "NPC",
     "aria": {
       "filterByArc": "Saring karakter berdasarkan arc"
+    },
+    "viewMode": {
+      "grid": "Tampilan Grid",
+      "graph": "Peta Hubungan"
     },
     "newCharacter": {
       "name": "Karakter Baru",
@@ -113,6 +119,8 @@
     "editBackground": "Edit Latar Belakang",
     "editDetails": "Edit Detail",
     "deleteCharacter": "Hapus Karakter",
+    "translateButton": "Terjemahkan ke {lang}",
+    "translating": "Menerjemahkan...",
     "portrait": "Potret",
     "outfit": "Pakaian",
     "editPortraits": "Edit Potret",
@@ -132,7 +140,8 @@
     "associatedArcs": "Arc Terkait",
     "arcsPlaceholder": "mis., Awal, Perang, Akibat",
     "arcsHelpText": "Pisahkan nama arc dengan koma.",
-    "about": "Tentang",
+    "about": "Info Umum",
+    "generalInfo": "Info Umum",
     "biography": "Biografi",
     "personality": "Kepribadian",
     "appearance": "Penampilan",
@@ -166,7 +175,14 @@
     },
     "noInformation": "Tidak ada informasi yang diberikan.",
     "newPortraitName": "Potret Baru",
-    "newArcName": "Arc Baru"
+    "newArcName": "Arc Baru",
+    "relationshipNotes": "Catatan Hubungan",
+    "addRelationship": "Tambah Hubungan",
+    "targetCharacter": "Karakter Target",
+    "description": "Deskripsi",
+    "relationPlaceholder": "cth. Rival, Saudara, Musuh",
+    "isNpc": "NPC",
+    "markAsNpc": "Tandai sebagai NPC"
   },
   "profile": {
     "profileTitle": "Profil {username}",

@@ -1,3 +1,4 @@
+
 {
   "header": {
     "titleHome": "Inicio",
@@ -86,8 +87,13 @@
     "noCharactersYet": "Aún no se han creado personajes. {cta}",
     "adminCta": "Haz clic en \"Añadir Personaje\" para comenzar.",
     "viewDetailsFor": "Ver detalles de {characterName}",
+    "npcSection": "NPCs",
     "aria": {
       "filterByArc": "Filtrar personajes por arco"
+    },
+    "viewMode": {
+      "grid": "Vista Cuadrícula",
+      "graph": "Mapa de Relaciones"
     },
     "newCharacter": {
       "name": "Nuevo Personaje",
@@ -113,6 +119,8 @@
     "editBackground": "Editar Fondo",
     "editDetails": "Editar Detalles",
     "deleteCharacter": "Eliminar Personaje",
+    "translateButton": "Traducir al {lang}",
+    "translating": "Traduciendo...",
     "portrait": "Retrato",
     "outfit": "Atuendo",
     "editPortraits": "Editar Retratos",
@@ -129,15 +137,23 @@
     "height": "Altura",
     "weight": "Peso",
     "bloodType": "Tipo de Sangre",
+    "isNpc": "NPC",
+    "markAsNpc": "Marcar como NPC",
     "associatedArcs": "Arcos Asociados",
     "arcsPlaceholder": "ej., El Comienzo, La Guerra, Consecuencias",
     "arcsHelpText": "Separa los nombres de los arcos con una coma.",
-    "about": "Acerca de",
+    "about": "Info General",
+    "generalInfo": "Info General",
     "biography": "Biografía",
     "personality": "Personalidad",
     "appearance": "Apariencia",
     "powers": "Poderes y Habilidades",
     "relationships": "Relaciones",
+    "relationshipNotes": "Notas de Relación",
+    "addRelationship": "Añadir Relación",
+    "targetCharacter": "Personaje Objetivo",
+    "description": "Descripción",
+    "relationPlaceholder": "ej. Rival, Hermano, Enemigo",
     "stats": "Estadísticas",
     "radar": "Radar",
     "bar": "Barras",

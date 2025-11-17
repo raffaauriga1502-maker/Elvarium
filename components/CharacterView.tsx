@@ -140,14 +140,14 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
         id: crypto.randomUUID(),
         name: t('characters.newCharacter.name'),
         alias: '',
-        status: t('characterCard.statusOptions.alive'),
+        status: 'Alive', // Standardized key
         birthplace: t('characters.newCharacter.unknown'),
         age: t('characters.newCharacter.unknown'),
         height: t('characters.newCharacter.unknown'),
         weight: t('characters.newCharacter.unknown'),
         bloodType: t('characters.newCharacter.unknown'),
         isNpc: false,
-        about: t('characters.newCharacter.about'),
+        about: '', // Default empty since the text field is hidden
         biography: t('characters.newCharacter.biography'),
         personality: t('characters.newCharacter.personality'),
         appearanceDescription: t('characters.newCharacter.appearanceDescription'),
