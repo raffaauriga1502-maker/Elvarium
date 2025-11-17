@@ -158,14 +158,23 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
     setShareStatus('generating');
     try {
       const result = await apiService.generateShareableLink();
-      await navigator.clipboard.writeText(result.url);
-      setShareStatus('copied');
+      
+      try {
+          // Attempt automatic copy
+          await navigator.clipboard.writeText(result.url);
+          setShareStatus('copied');
+          setTimeout(() => setShareStatus('idle'), 3000);
+      } catch (clipboardError) {
+          console.warn("Clipboard write failed, falling back to prompt:", clipboardError);
+          // Fallback for mobile/permissions issues - allows manual copy
+          window.prompt(t('sidebar.copyShareLink'), result.url);
+          setShareStatus('idle');
+      }
       
       if (result.warning) {
           alert(result.warning);
       }
       
-      setTimeout(() => setShareStatus('idle'), 3000);
     } catch (error: any) {
         console.error("Failed to generate share link:", error);
         setShareStatus('error');
