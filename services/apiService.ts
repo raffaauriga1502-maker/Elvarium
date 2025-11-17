@@ -319,8 +319,20 @@ export const importAllData = async (data: any): Promise<void> => {
 };
 
 // --- Compression Helpers ---
+// Add safe checks for compression streams for older browsers (iOS < 16.4, etc)
+
+function isCompressionSupported() {
+    return typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
+}
 
 async function compressData(jsonString: string): Promise<Uint8Array> {
+    if (!isCompressionSupported()) {
+        // Fallback: Just return string bytes (dumb fallback, but prevents crash)
+        // In reality, you'd use a JS library like pako, but for this no-dependency setup:
+        const encoder = new TextEncoder();
+        return encoder.encode(jsonString);
+    }
+
     const stream = new Blob([jsonString]).stream();
     const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
     const reader = compressedStream.getReader();
@@ -336,6 +348,12 @@ async function compressData(jsonString: string): Promise<Uint8Array> {
 }
 
 async function decompressData(compressed: Uint8Array): Promise<string> {
+    if (!isCompressionSupported()) {
+        // Fallback assumption: It wasn't compressed or we can't decompress
+        const decoder = new TextDecoder();
+        return decoder.decode(compressed);
+    }
+
     const stream = new Blob([compressed]).stream();
     const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
     const reader = new Response(decompressedStream).body!.getReader();
@@ -523,6 +541,20 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     };
     
     const rawJsonString = JSON.stringify(dataToShare);
+    
+    // Check if compression is available
+    if (!isCompressionSupported()) {
+        // For older browsers, we can only share small worlds that fit in a single paste
+        const payloadObject = { compressed: false, data: btoa(rawJsonString) }; // Simple base64
+        const payloadString = JSON.stringify(payloadObject);
+         try {
+            const pasteId = await uploadToDpasteWithRetry(payloadString);
+             const baseUrl = window.location.origin + window.location.pathname;
+            return { url: `${baseUrl}#id=${pasteId}`, warning: "Compression not supported on this browser. Only small worlds can be shared." };
+        } catch (e: any) {
+            throw new Error("Browser too old for compression, and data too large for uncompressed share.");
+        }
+    }
     
     // Compress the data to fit more content
     const compressedBytes = await compressData(rawJsonString);

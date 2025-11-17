@@ -2,15 +2,50 @@
 import { GoogleGenAI } from "@google/genai";
 import { Character } from "../types";
 
-// Initialize the Gemini API client
-// The API key is safely retrieved from the environment variables
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// We do not initialize the client globally to prevent "ReferenceError: process is not defined" 
+// or immediate crashes on app load if the key is missing in certain environments.
 
 export const translateCharacterFields = async (
   character: Character,
   targetLanguage: string
 ): Promise<Partial<Character>> => {
   try {
+    // Retrieve the key at the moment of the request using multiple possible sources
+    let apiKey: string | undefined;
+
+    // 1. Try Vite standard env var
+    try {
+        // @ts-ignore
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+             // @ts-ignore
+            apiKey = import.meta.env.VITE_API_KEY;
+        }
+        // 2. Try Generic API_KEY in Vite
+        // @ts-ignore
+        else if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.API_KEY) {
+            // @ts-ignore
+           apiKey = import.meta.env.API_KEY;
+       }
+    } catch (e) {}
+
+    // 3. Try process.env (Node/Webpack/CRA)
+    if (!apiKey) {
+        try {
+            // @ts-ignore
+            if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+                // @ts-ignore
+                apiKey = process.env.API_KEY;
+            }
+        } catch (e) {}
+    }
+
+    if (!apiKey) {
+        throw new Error("API Key is missing. Please add 'VITE_API_KEY' or 'API_KEY' to your Vercel Environment Variables.");
+    }
+
+    // Initialize the client lazily
+    const ai = new GoogleGenAI({ apiKey: apiKey });
+
     // We only translate the text-heavy prose fields.
     // Vital stats (numbers) and arrays (like gallery) are preserved or handled separately.
     const contentToTranslate = {
@@ -46,8 +81,9 @@ export const translateCharacterFields = async (
     if (!response.text) throw new Error("No response from AI");
     
     return JSON.parse(response.text);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Translation failed:", error);
-    throw error;
+    // Re-throw with a user-friendly message if possible
+    throw new Error(error.message || "Translation failed.");
   }
 };

@@ -53,20 +53,35 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
             return;
         }
         
-        // The secret code is securely managed as an environment variable.
-        // A fallback is provided for local development if the variable isn't set.
-        const ADMIN_SECRET = process.env.ADMIN_SECRET || 'elvarium_admin_secret';
+        // Safely retrieve the secret code
+        let envSecret = 'elvarium_admin_secret'; // Default fallback
+        try {
+             // Check for Vite style env vars first
+            // @ts-ignore
+            if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_ADMIN_SECRET) {
+                // @ts-ignore
+                envSecret = import.meta.env.VITE_ADMIN_SECRET;
+            } 
+            // Check for process.env (standard Node/Webpack) safely
+            else if (typeof process !== 'undefined' && process.env && process.env.ADMIN_SECRET) {
+                envSecret = process.env.ADMIN_SECRET;
+            }
+        } catch (e) {
+            // Ignore access errors
+        }
 
         const newUser: User = {
             username,
             password,
-            role: adminCode === ADMIN_SECRET ? 'admin' : 'viewer',
+            role: adminCode === envSecret ? 'admin' : 'viewer',
             bio: '',
             avatarUrl: '',
         };
         
         if (newUser.role === 'viewer' && adminCode) {
             setError(t('auth.incorrectAdminCode'));
+            setIsLoading(false);
+            return;
         }
 
         const updatedUsers = [...users, newUser];
