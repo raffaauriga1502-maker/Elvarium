@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { Character } from '../types';
@@ -239,7 +240,8 @@ const RelationshipGraph: React.FC<RelationshipGraphProps> = ({ characters, onSel
         if (draggedNodeRef.current && simulationRef.current) {
             (event.target as Element).releasePointerCapture(event.pointerId);
             
-            if (!event.active) simulationRef.current.alphaTarget(0);
+            // Cooldown the simulation
+            simulationRef.current.alphaTarget(0);
             
             draggedNodeRef.current.fx = null;
             draggedNodeRef.current.fy = null;
