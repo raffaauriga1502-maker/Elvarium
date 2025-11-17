@@ -109,10 +109,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl, logoUrl, ba
 
   return (
     <div className="w-full h-screen relative overflow-hidden flex flex-col items-center justify-center p-4">
-       {/* Dedicated Background Layer */}
+       {/* Dedicated Background Layer - Fixed to cover viewport, z-0 for base layer */}
        {backgroundImageUrl && (
            <div 
-                className="absolute inset-0 z-[-1]"
+                className="fixed inset-0 z-0"
                 style={{
                     backgroundImage: `url(${backgroundImageUrl})`,
                     backgroundSize: 'cover',
@@ -124,101 +124,104 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl, logoUrl, ba
            </div>
        )}
 
-       {logoUrl && (
-           <div className="mb-8 animate-fade-in relative z-10">
-               <img src={logoUrl} alt="App Logo" className="max-h-32 max-w-[240px] object-contain drop-shadow-2xl" />
-           </div>
-       )}
+       {/* Content Container - z-10 to sit above background */}
+       <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
+           {logoUrl && (
+               <div className="mb-8 animate-fade-in">
+                   <img src={logoUrl} alt="App Logo" className="max-h-32 max-w-[240px] object-contain drop-shadow-2xl" />
+               </div>
+           )}
 
-       <div className="w-full max-w-sm mx-auto bg-crystalline rounded-xl shadow-2xl overflow-hidden border border-secondary/50 animate-fade-in relative z-10">
-          <div className="h-40 bg-primary relative">
-            {authBannerUrl ? (
-                <img src={authBannerUrl} alt="Login Banner" className="w-full h-full object-cover" />
-            ) : (
-                <div 
-                    className="w-full h-full"
-                    style={{
-                        backgroundImage: `
-                        linear-gradient(160deg, rgba(56, 189, 248, 0.04) 5%, transparent 40%),
-                        linear-gradient(340deg, rgba(56, 189, 248, 0.05) 10%, transparent 50%)
-                        `
-                    }}
-                ></div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-          </div>
-          <div className="p-8 relative">
-            <div className="text-center mb-6">
-                    <h2 
-                        className="text-2xl font-semibold text-white font-display"
-                    >
-                        {isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}
-                    </h2>
-            </div>
-            
-            {error && <p className="bg-red-900/50 text-red-300 p-3 rounded-md text-center mb-4 text-sm border border-red-700/50">{error}</p>}
-            {info && !error && <p className="bg-sky-900/50 text-sky-300 p-3 rounded-md text-center mb-4 text-sm border border-sky-700/50">{info}</p>}
+           <div className="w-full bg-crystalline rounded-xl shadow-2xl overflow-hidden border border-secondary/50 animate-fade-in">
+              <div className="h-40 bg-primary relative">
+                {authBannerUrl ? (
+                    <img src={authBannerUrl} alt="Login Banner" className="w-full h-full object-cover" />
+                ) : (
+                    <div 
+                        className="w-full h-full"
+                        style={{
+                            backgroundImage: `
+                            linear-gradient(160deg, rgba(56, 189, 248, 0.04) 5%, transparent 40%),
+                            linear-gradient(340deg, rgba(56, 189, 248, 0.05) 10%, transparent 50%)
+                            `
+                        }}
+                    ></div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              </div>
+              <div className="p-8 relative">
+                <div className="text-center mb-6">
+                        <h2 
+                            className="text-2xl font-semibold text-white font-display"
+                        >
+                            {isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}
+                        </h2>
+                </div>
+                
+                {error && <p className="bg-red-900/50 text-red-300 p-3 rounded-md text-center mb-4 text-sm border border-red-700/50">{error}</p>}
+                {info && !error && <p className="bg-sky-900/50 text-sky-300 p-3 rounded-md text-center mb-4 text-sm border border-sky-700/50">{info}</p>}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="username">
-                        {t('auth.username')}
-                    </label>
-                    <input
-                        id="username"
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                        className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition placeholder:text-slate-500"
-                        placeholder={t('auth.placeholders.username')}
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="password">
-                        {t('auth.password')}
-                    </label>
-                    <input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition"
-                        placeholder="••••••••"
-                    />
-                </div>
-                {!isLogin && (
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="adminCode">
-                            {t('auth.adminCode')}
+                        <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="username">
+                            {t('auth.username')}
                         </label>
                         <input
-                            id="adminCode"
-                            type="password"
-                            value={adminCode}
-                            onChange={(e) => setAdminCode(e.target.value)}
-                            className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition"
-                            placeholder={t('auth.adminCodePlaceholder')}
+                            id="username"
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition placeholder:text-slate-500"
+                            placeholder={t('auth.placeholders.username')}
                         />
                     </div>
-                )}
-                <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30 disabled:bg-slate-600 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0"
-                >
-                    {isLoading ? t('auth.processing') : (isLogin ? t('auth.loginButton') : t('auth.signupButton'))}
-                </button>
-            </form>
+                    <div>
+                        <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="password">
+                            {t('auth.password')}
+                        </label>
+                        <input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition"
+                            placeholder="••••••••"
+                        />
+                    </div>
+                    {!isLogin && (
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-2" htmlFor="adminCode">
+                                {t('auth.adminCode')}
+                            </label>
+                            <input
+                                id="adminCode"
+                                type="password"
+                                value={adminCode}
+                                onChange={(e) => setAdminCode(e.target.value)}
+                                className="w-full bg-secondary border border-slate-600 rounded-md p-3 text-text-primary focus:ring-accent focus:border-accent transition"
+                                placeholder={t('auth.adminCodePlaceholder')}
+                            />
+                        </div>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30 disabled:bg-slate-600 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                        {isLoading ? t('auth.processing') : (isLogin ? t('auth.loginButton') : t('auth.signupButton'))}
+                    </button>
+                </form>
 
-            <p className="text-center text-sm text-text-secondary mt-6">
-                {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
-                <button onClick={handleToggleMode} className="font-semibold text-accent hover:text-sky-300 ml-2 underline decoration-transparent hover:decoration-accent transition-all">
-                    {isLogin ? t('auth.signupButton') : t('auth.loginButton')}
-                </button>
-            </p>
-          </div>
+                <p className="text-center text-sm text-text-secondary mt-6">
+                    {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
+                    <button onClick={handleToggleMode} className="font-semibold text-accent hover:text-sky-300 ml-2 underline decoration-transparent hover:decoration-accent transition-all">
+                        {isLogin ? t('auth.signupButton') : t('auth.loginButton')}
+                    </button>
+                </p>
+              </div>
+           </div>
        </div>
        <style>{`
          @keyframes fade-in {

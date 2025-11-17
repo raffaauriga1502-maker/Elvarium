@@ -187,8 +187,11 @@ const App: React.FC = () => {
               
               // Clean URL before hard reload
               window.history.replaceState(null, '', window.location.pathname);
-              // Hard reload to ensure IndexedDB and React state are completely fresh
-              window.location.reload();
+              
+              // Short delay to ensure IDB transactions flush
+              setTimeout(() => {
+                  window.location.reload();
+              }, 500);
           }
       } catch (error: any) {
           console.error("Import failed:", error);
