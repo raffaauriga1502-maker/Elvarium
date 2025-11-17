@@ -32,14 +32,23 @@
     <style>
       html, body {
         height: 100%;
+        width: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden; /* App handles scrolling internally */
         background-color: #0F172A;
       }
 
-      body {
-        /* A unified, full-screen faceted background */
+      /* Dedicated Fixed Background Layer to fix mobile 'half-background' issues */
+      #app-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1; /* Behind everything */
+        pointer-events: none;
+        
         background-image: 
           radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.15), transparent 60%),
           linear-gradient(120deg, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
@@ -47,8 +56,8 @@
           repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 50px),
           repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 50px);
         background-size: 100% 100%, 100% 100%, 100% 100%, 100px 100px, 100px 100px;
-        background-attachment: fixed;
         background-position: center;
+        background-repeat: no-repeat;
       }
 
       /* Glassmorphism: Replaces opaque backgrounds to let the main background show through */
@@ -81,6 +90,7 @@
 </script>
 </head>
   <body class="text-text-primary">
+    <div id="app-background"></div>
     <div id="root" class="h-full"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
