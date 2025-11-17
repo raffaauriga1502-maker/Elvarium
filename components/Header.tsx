@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import * as apiService from '../services/apiService';
@@ -29,7 +30,7 @@ const Header: React.FC<HeaderProps> = ({ title, onMenuClick, user, onLogout, isG
   }, [user.avatarUrl]);
 
   return (
-    <header className="bg-crystalline shadow-md p-4 flex items-center justify-between">
+    <header className="bg-crystalline shadow-md p-4 flex items-center justify-between relative z-30">
        <div className="flex items-center">
         <button onClick={onMenuClick} className="text-text-primary mr-4 md:hidden">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

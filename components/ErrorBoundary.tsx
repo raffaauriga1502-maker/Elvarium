@@ -9,8 +9,8 @@ interface State {
   error: Error | null;
 }
 
-class ErrorBoundary extends React.Component<Props, State> {
-  public state: State = {
+class ErrorBoundary extends Component<Props, State> {
+  state: State = {
     hasError: false,
     error: null,
   };
