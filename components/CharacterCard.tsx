@@ -6,7 +6,7 @@ import BarChart from './BarChart';
 import ImageModal from './ImageModal';
 import * as apiService from '../services/apiService';
 import * as idbService from '../services/idbService';
-import { useI18n, supportedLanguages } from '../contexts/I18nContext';
+import { useI18n } from '../contexts/I18nContext';
 
 
 interface CharacterCardProps {

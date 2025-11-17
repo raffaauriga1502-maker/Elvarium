@@ -7,7 +7,7 @@ import CharacterView from './components/CharacterView';
 import AuthView from './components/AuthView';
 import ProfileView from './components/ProfileView';
 import ImportModal from './components/ImportModal';
-import { View, User, CharacterType } from './types';
+import { View, User } from './types';
 import * as apiService from './services/apiService';
 import { useI18n } from './contexts/I18nContext';
 
