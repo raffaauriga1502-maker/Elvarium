@@ -109,21 +109,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl, logoUrl, ba
 
   return (
     <div className="w-full h-screen h-[100dvh] relative overflow-hidden flex flex-col items-center justify-center p-4">
-       {/* Background Layer */}
+       {/* Background Image Layer - Using img tag for better Blob URL support */}
        {backgroundImageUrl && (
-           <div 
-                className="fixed inset-0 z-0"
-                style={{
-                    backgroundImage: `url("${backgroundImageUrl}")`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                }}
+           <img 
+                src={backgroundImageUrl}
+                alt=""
+                className="fixed inset-0 w-full h-full object-cover z-0 pointer-events-none"
            />
        )}
        
        {/* Overlay Layer - Applies tint over image or serves as fallback background */}
-       <div className={`fixed inset-0 z-0 ${backgroundImageUrl ? 'bg-slate-900/60' : 'bg-slate-900/80'} backdrop-blur-[2px]`}></div>
+       <div className={`fixed inset-0 z-0 ${backgroundImageUrl ? 'bg-slate-900/60' : 'bg-slate-900/80'} backdrop-blur-[2px] pointer-events-none`}></div>
 
        {/* Content Container - z-10 to sit above background */}
        <div className="relative z-10 w-full max-w-sm flex flex-col items-center">

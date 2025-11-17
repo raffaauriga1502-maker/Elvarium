@@ -65,10 +65,24 @@ const App: React.FC = () => {
         apiService.getHomeBackground(),
     ]);
     
-    // Always resolving - if key is null, resolveImageUrl returns null
-    apiService.resolveImageUrl(logoKey).then(setLogoImageUrl);
-    apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
-    apiService.resolveImageUrl(homeBgKey).then(setHomeBgUrl);
+    // Explicitly set state, handling nulls to clear old images if needed
+    if (logoKey) {
+        apiService.resolveImageUrl(logoKey).then(setLogoImageUrl);
+    } else {
+        setLogoImageUrl(null);
+    }
+
+    if (authBannerKey) {
+        apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
+    } else {
+        setAuthBannerUrl(null);
+    }
+
+    if (homeBgKey) {
+        apiService.resolveImageUrl(homeBgKey).then(setHomeBgUrl);
+    } else {
+        setHomeBgUrl(null);
+    }
   };
 
   const loadInitialData = async () => {
@@ -194,15 +208,18 @@ const App: React.FC = () => {
               window.history.replaceState(null, '', window.location.pathname);
               
               // Explicit wait and check to ensure IDB flush.
-              // We attempt a "read back" from IDB specifically to force verifying the disk write before reloading
               await new Promise(resolve => setTimeout(resolve, 2000));
               try {
-                  // Attempt to read a key to verify DB is ready
+                  // Verification: Read key from LocalStorage (which was just imported)
                   const homeBgKey = await apiService.getHomeBackground();
                   if (homeBgKey) {
-                      await apiService.verifyImageExists(homeBgKey);
+                      // Then verify the actual blob exists in IDB
+                      const exists = await apiService.verifyImageExists(homeBgKey);
+                      if (!exists) {
+                          console.warn("Verification warning: Image key exists but blob not found immediately.");
+                      }
                   }
-              } catch (e) { console.log("Flush verify pass"); }
+              } catch (e) { console.log("Flush verify pass", e); }
 
               window.location.reload();
           }
