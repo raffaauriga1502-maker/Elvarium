@@ -1,49 +1,20 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Character } from "../types";
-
-// We do not initialize the client globally to prevent "ReferenceError: process is not defined" 
-// or immediate crashes on app load if the key is missing in certain environments.
 
 export const translateCharacterFields = async (
   character: Character,
   targetLanguage: string
 ): Promise<Partial<Character>> => {
   try {
-    // Retrieve the key at the moment of the request using multiple possible sources
-    let apiKey: string | undefined;
-
-    // 1. Try Vite standard env var
-    try {
-        // @ts-ignore
-        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
-             // @ts-ignore
-            apiKey = import.meta.env.VITE_API_KEY;
-        }
-        // 2. Try Generic API_KEY in Vite
-        // @ts-ignore
-        else if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.API_KEY) {
-            // @ts-ignore
-           apiKey = import.meta.env.API_KEY;
-       }
-    } catch (e) {}
-
-    // 3. Try process.env (Node/Webpack/CRA)
-    if (!apiKey) {
-        try {
-            // @ts-ignore
-            if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-                // @ts-ignore
-                apiKey = process.env.API_KEY;
-            }
-        } catch (e) {}
-    }
+    // API Key is injected by Vite at build time via 'define' in vite.config.ts
+    // It replaces 'process.env.API_KEY' with the actual string value.
+    const apiKey = process.env.API_KEY;
 
     if (!apiKey) {
-        throw new Error("API Key is missing. Please add 'VITE_API_KEY' or 'API_KEY' to your Vercel Environment Variables.");
+        throw new Error("API Key is missing. Please add 'API_KEY' to your Vercel Environment Variables.");
     }
 
-    // Initialize the client lazily
+    // Initialize the client
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
     // We only translate the text-heavy prose fields.
