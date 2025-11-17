@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './components/Header';
@@ -166,7 +164,7 @@ const App: React.FC = () => {
     }
   }
   
-  const handleConfirmImport = async () => {
+  const handleConfirmImport = async (setStatus: (status: 'loading' | 'finalizing' | 'success' | 'error' | 'idle') => void) => {
       try {
           let dataToImport;
           if (sharedWorldId) {
@@ -187,13 +185,16 @@ const App: React.FC = () => {
           if (dataToImport) {
               await apiService.importAllData(dataToImport);
               
+              // Inform modal to switch to finalizing state
+              setStatus('finalizing');
+
               // Clean URL before hard reload
               window.history.replaceState(null, '', window.location.pathname);
               
-              // Extended delay to ensure IDB transactions flush to disk on slower devices
-              setTimeout(() => {
-                  window.location.reload();
-              }, 1500);
+              // Explicit wait to ensure IDB flush
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              window.location.reload();
           }
       } catch (error: any) {
           console.error("Import failed:", error);

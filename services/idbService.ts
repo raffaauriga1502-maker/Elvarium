@@ -59,21 +59,28 @@ export async function setImage(key: string, blob: Blob): Promise<void> {
 
 export async function setImagesBulk(images: Record<string, Blob>): Promise<void> {
   const dbInstance = await getDB();
-  return new Promise((resolve, reject) => {
-    const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
+  const entries = Object.entries(images);
+  const BATCH_SIZE = 5; // Process in small batches to prevent transaction timeouts on mobile
 
-    Object.entries(images).forEach(([key, blob]) => {
-        store.put(blob, key);
-    });
+  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      
+      await new Promise<void>((resolve, reject) => {
+          const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
+          const store = transaction.objectStore(STORE_NAME);
 
-    transaction.oncomplete = () => resolve();
-    
-    transaction.onerror = () => {
-      console.error('Bulk save failed:', transaction.error);
-      reject(transaction.error);
-    };
-  });
+          batch.forEach(([key, blob]) => {
+              store.put(blob, key);
+          });
+
+          transaction.oncomplete = () => resolve();
+          
+          transaction.onerror = () => {
+            console.error('Bulk save failed for batch:', transaction.error);
+            reject(transaction.error);
+          };
+      });
+  }
 }
 
 export async function getImage(key: string): Promise<Blob | null> {
@@ -149,4 +156,11 @@ export async function clearImages(): Promise<void> {
             reject(transaction.error);
         };
     });
+}
+
+export function closeConnection(): void {
+    if (db) {
+        db.close();
+        db = null;
+    }
 }

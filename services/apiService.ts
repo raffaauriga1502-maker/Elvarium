@@ -1,6 +1,4 @@
 
-
-
 import { User, Character, CharacterType } from '../types';
 import * as idbService from './idbService';
 
@@ -329,6 +327,10 @@ export const importAllData = async (data: any): Promise<void> => {
     if (Object.keys(imagesToSave).length > 0) {
         await idbService.setImagesBulk(imagesToSave);
     }
+
+    // Crucial: Explicitly close the database connection to force a flush to disk
+    // before any page reload occurs.
+    idbService.closeConnection();
 };
 
 // --- Compression Helpers ---
