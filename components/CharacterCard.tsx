@@ -379,7 +379,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         backgroundColor: '#1E293B', // secondary
       };
     
-    const dossierSections: { id: string; label: string; name: keyof Character | 'appearance' | 'stats' | 'gallery' }[] = [
+    const allDossierSections: { id: string; label: string; name: keyof Character | 'appearance' | 'stats' | 'gallery' }[] = [
         { id: 'about', label: t('characterCard.about'), name: 'about' },
         { id: 'biography', label: t('characterCard.biography'), name: 'biography' },
         { id: 'personality', label: t('characterCard.personality'), name: 'personality' },
@@ -390,6 +390,10 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         { id: 'trivia', label: t('characterCard.trivia'), name: 'trivia' },
         { id: 'gallery', label: t('characterCard.gallery'), name: 'gallery' }
     ];
+
+    const dossierSections = editedCharacter.isNpc
+        ? allDossierSections.filter(section => ['about'].includes(section.id))
+        : allDossierSections;
 
     const scrollToSection = (id: string) => {
         const element = document.getElementById(id);
@@ -650,83 +654,87 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                     )}
                     <SimpleEditableSection title={t('characterCard.about')} content={editedCharacter.about} name="about" isEditing={isEditing} onChange={handleInputChange}/>
                 </section>
-                <section id="dossier-biography" className="mb-8"><SimpleEditableSection title={t('characterCard.biography')} content={editedCharacter.biography} name="biography" isEditing={isEditing} onChange={handleInputChange}/></section>
-                <section id="dossier-personality" className="mb-8"><SimpleEditableSection title={t('characterCard.personality')} content={editedCharacter.personality} name="personality" isEditing={isEditing} onChange={handleInputChange}/></section>
-                <section id="dossier-appearance" className="mb-8"><SimpleEditableSection title={t('characterCard.appearance')} content={editedCharacter.appearanceDescription} name="appearanceDescription" isEditing={isEditing} onChange={handleInputChange}/></section>
-                <section id="dossier-powers" className="mb-8"><SimpleEditableSection title={t('characterCard.powers')} content={editedCharacter.powers} name="powers" isEditing={isEditing} onChange={handleInputChange}/></section>
-                <section id="dossier-relationships" className="mb-8"><SimpleEditableSection title={t('characterCard.relationships')} content={editedCharacter.relationships} name="relationships" isEditing={isEditing} onChange={handleInputChange}/></section>
-                
-                <section id="dossier-stats" className="mb-8">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">{t('characterCard.stats')}</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {STAT_KEYS.map(key => (
-                            <div key={key} className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg text-center">
-                                <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{t(`characterCard.statsShort.${key}`)}</h4>
-                                {isEditing ? (
-                                    <input type="number" name={key} value={editedCharacter.stats[key]} onChange={handleStatChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center"/>
-                                ) : (
-                                    <p className="text-text-primary text-xl font-bold">{editedCharacter.stats[key]}</p>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                     {!isEditing && (
-                        <>
-                            <div className="flex gap-2 justify-end my-4">
-                                <button onClick={() => setChartType(p => p === 'radar' ? null : 'radar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'radar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.radar')}</button>
-                                <button onClick={() => setChartType(p => p === 'bar' ? null : 'bar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'bar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.bar')}</button>
-                            </div>
-                            <div className={`grid transition-all duration-500 ease-in-out ${chartType ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                                <div className="overflow-hidden min-h-0">
-                                    {chartType === 'radar' && <RadarChart stats={character.stats} size={300} />}
-                                    {chartType === 'bar' && <BarChart stats={character.stats} width={450} height={300} />}
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </section>
-                 <section id="dossier-trivia" className="mb-8"><SimpleEditableSection title={t('characterCard.trivia')} content={editedCharacter.trivia} name="trivia" isEditing={isEditing} onChange={handleInputChange}/></section>
-                 <section id="dossier-gallery">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">{t('characterCard.gallery')}</h3>
-                     {isEditing ? (
-                        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                           {(editedCharacter.gallery || []).map((image) => {
-                               const fileInputId = `gallery-file-${image.id}`;
-                               return (
-                                   <div key={image.id} className="flex items-center gap-4 bg-secondary/50 p-3 rounded-lg">
-                                       <div className="relative w-16 h-16 rounded-md overflow-hidden bg-primary flex-shrink-0 group">
-                                           <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleGalleryImageChange(image.id, e.target.files[0])}/>
-                                            <ResolvedImageDisplay imageKey={image.imageUrl} alt={image.caption} defaultIconSize="h-8 w-8" />
-                                           <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
-                                               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
-                                           </label>
-                                       </div>
-                                       <div className="flex-grow">
-                                           <label className="text-xs text-text-secondary">{t('characterCard.caption')}</label>
-                                           <input type="text" value={image.caption} onChange={(e) => handleGalleryCaptionChange(image.id, e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"/>
-                                       </div>
-                                       <button onClick={() => handleDeleteGalleryImage(image.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
-                                       </button>
-                                   </div>
-                               )
-                           })}
-                           <button onClick={handleAddGalleryImage} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors">
-                               {t('characterCard.addGalleryImage')}
-                           </button>
-                       </div>
-                    ) : (
-                        (editedCharacter.gallery && editedCharacter.gallery.length > 0) ? (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                {editedCharacter.gallery.filter(img => img.imageUrl).map(image => (
-                                    <GalleryImageItem key={image.id} image={image} characterName={character.name} onImageClick={setModalImage} />
+                {!editedCharacter.isNpc && (
+                    <>
+                        <section id="dossier-biography" className="mb-8"><SimpleEditableSection title={t('characterCard.biography')} content={editedCharacter.biography} name="biography" isEditing={isEditing} onChange={handleInputChange}/></section>
+                        <section id="dossier-personality" className="mb-8"><SimpleEditableSection title={t('characterCard.personality')} content={editedCharacter.personality} name="personality" isEditing={isEditing} onChange={handleInputChange}/></section>
+                        <section id="dossier-appearance" className="mb-8"><SimpleEditableSection title={t('characterCard.appearance')} content={editedCharacter.appearanceDescription} name="appearanceDescription" isEditing={isEditing} onChange={handleInputChange}/></section>
+                        <section id="dossier-powers" className="mb-8"><SimpleEditableSection title={t('characterCard.powers')} content={editedCharacter.powers} name="powers" isEditing={isEditing} onChange={handleInputChange}/></section>
+                        <section id="dossier-relationships" className="mb-8"><SimpleEditableSection title={t('characterCard.relationships')} content={editedCharacter.relationships} name="relationships" isEditing={isEditing} onChange={handleInputChange}/></section>
+                        
+                        <section id="dossier-stats" className="mb-8">
+                            <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">{t('characterCard.stats')}</h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {STAT_KEYS.map(key => (
+                                    <div key={key} className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg text-center">
+                                        <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{t(`characterCard.statsShort.${key}`)}</h4>
+                                        {isEditing ? (
+                                            <input type="number" name={key} value={editedCharacter.stats[key]} onChange={handleStatChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center"/>
+                                        ) : (
+                                            <p className="text-text-primary text-xl font-bold">{editedCharacter.stats[key]}</p>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
-                        ) : (
-                            <p className="text-text-secondary italic">{t('characterCard.noGalleryImages')}</p>
-                        )
-                    )}
-                </section>
+                            {!isEditing && (
+                                <>
+                                    <div className="flex gap-2 justify-end my-4">
+                                        <button onClick={() => setChartType(p => p === 'radar' ? null : 'radar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'radar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.radar')}</button>
+                                        <button onClick={() => setChartType(p => p === 'bar' ? null : 'bar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'bar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.bar')}</button>
+                                    </div>
+                                    <div className={`grid transition-all duration-500 ease-in-out ${chartType ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                                        <div className="overflow-hidden min-h-0">
+                                            {chartType === 'radar' && <RadarChart stats={character.stats} size={300} />}
+                                            {chartType === 'bar' && <BarChart stats={character.stats} width={450} height={300} />}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </section>
+                        <section id="dossier-trivia" className="mb-8"><SimpleEditableSection title={t('characterCard.trivia')} content={editedCharacter.trivia} name="trivia" isEditing={isEditing} onChange={handleInputChange}/></section>
+                         <section id="dossier-gallery">
+                            <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">{t('characterCard.gallery')}</h3>
+                             {isEditing ? (
+                                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                                   {(editedCharacter.gallery || []).map((image) => {
+                                       const fileInputId = `gallery-file-${image.id}`;
+                                       return (
+                                           <div key={image.id} className="flex items-center gap-4 bg-secondary/50 p-3 rounded-lg">
+                                               <div className="relative w-16 h-16 rounded-md overflow-hidden bg-primary flex-shrink-0 group">
+                                                   <input type="file" id={fileInputId} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleGalleryImageChange(image.id, e.target.files[0])}/>
+                                                    <ResolvedImageDisplay imageKey={image.imageUrl} alt={image.caption} defaultIconSize="h-8 w-8" />
+                                                   <label htmlFor={fileInputId} className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-opacity cursor-pointer">
+                                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white opacity-0 group-hover:opacity-100" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                                                   </label>
+                                               </div>
+                                               <div className="flex-grow">
+                                                   <label className="text-xs text-text-secondary">{t('characterCard.caption')}</label>
+                                                   <input type="text" value={image.caption} onChange={(e) => handleGalleryCaptionChange(image.id, e.target.value)} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"/>
+                                               </div>
+                                               <button onClick={() => handleDeleteGalleryImage(image.id)} className="p-2 rounded-full text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors">
+                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="http://www.w3.org/2000/svg" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                                               </button>
+                                           </div>
+                                       )
+                                   })}
+                                   <button onClick={handleAddGalleryImage} className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors">
+                                       {t('characterCard.addGalleryImage')}
+                                   </button>
+                               </div>
+                            ) : (
+                                (editedCharacter.gallery && editedCharacter.gallery.length > 0) ? (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                        {editedCharacter.gallery.filter(img => img.imageUrl).map(image => (
+                                            <GalleryImageItem key={image.id} image={image} characterName={character.name} onImageClick={setModalImage} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-text-secondary italic">{t('characterCard.noGalleryImages')}</p>
+                                )
+                            )}
+                        </section>
+                    </>
+                )}
             </div>
         </div>
       </div>
