@@ -184,8 +184,11 @@ const App: React.FC = () => {
 
           if (dataToImport) {
               await apiService.importAllData(dataToImport);
-              // Refresh logic: Reload page to ensure all states (like context, caches) are fresh
-               window.location.href = window.location.pathname;
+              
+              // Clean URL before hard reload
+              window.history.replaceState(null, '', window.location.pathname);
+              // Hard reload to ensure IndexedDB and React state are completely fresh
+              window.location.reload();
           }
       } catch (error: any) {
           console.error("Import failed:", error);

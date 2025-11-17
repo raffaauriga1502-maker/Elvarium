@@ -107,25 +107,30 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl, logoUrl, ba
     setAdminCode('');
   }
 
-  const containerStyle = backgroundImageUrl ? {
-      backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.8)), url(${backgroundImageUrl})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundAttachment: 'fixed'
-  } : undefined;
-
   return (
-    <div 
-        className="w-full h-screen flex flex-col items-center justify-center p-4 transition-all duration-700 ease-in-out" 
-        style={containerStyle}
-    >
-       {logoUrl && (
-           <div className="mb-8 animate-fade-in">
-               <img src={logoUrl} alt="App Logo" className="max-h-24 max-w-[200px] object-contain drop-shadow-lg" />
+    <div className="w-full h-screen relative overflow-hidden flex flex-col items-center justify-center p-4">
+       {/* Dedicated Background Layer */}
+       {backgroundImageUrl && (
+           <div 
+                className="absolute inset-0 z-[-1]"
+                style={{
+                    backgroundImage: `url(${backgroundImageUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                }}
+           >
+               {/* Dark Overlay for readability */}
+               <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px]"></div>
            </div>
        )}
 
-       <div className="w-full max-w-sm mx-auto bg-crystalline rounded-xl shadow-2xl overflow-hidden border border-secondary/50 animate-fade-in">
+       {logoUrl && (
+           <div className="mb-8 animate-fade-in relative z-10">
+               <img src={logoUrl} alt="App Logo" className="max-h-32 max-w-[240px] object-contain drop-shadow-2xl" />
+           </div>
+       )}
+
+       <div className="w-full max-w-sm mx-auto bg-crystalline rounded-xl shadow-2xl overflow-hidden border border-secondary/50 animate-fade-in relative z-10">
           <div className="h-40 bg-primary relative">
             {authBannerUrl ? (
                 <img src={authBannerUrl} alt="Login Banner" className="w-full h-full object-cover" />
