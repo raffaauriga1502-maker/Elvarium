@@ -19,7 +19,7 @@ const isQuotaExceededError = (error: any) => {
 async function decompressData(compressed: Uint8Array): Promise<string> {
     const stream = new Blob([compressed]).stream();
     const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
-    const reader = new Response(decompressedStream).body.getReader();
+    const reader = new Response(decompressedStream).body!.getReader();
     const chunks = [];
     while (true) {
         const { done, value } = await reader.read();
@@ -41,13 +41,6 @@ function base64ToUint8Array(base64: string): Uint8Array {
 }
 // --- End Decompression Helpers ---
 
-// Interface for holding import data from a URL before the user is authenticated.
-interface PendingImport {
-  type: 'id' | 'data' | 'fio' | 'chunks';
-  value: string;
-  isCompressed?: boolean;
-}
-
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>({ type: 'home' });
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -55,17 +48,13 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authBannerUrl, setAuthBannerUrl] = useState<string | null>(null);
   
-  // State for triggering the import modal for already logged-in users.
+  // State for triggering the import modal
   const [importData, setImportData] = useState<string | null>(null);
   const [importIsCompressed, setImportIsCompressed] = useState(false);
   const [sharedWorldId, setSharedWorldId] = useState<string | null>(null);
   const [sharedWorldSource, setSharedWorldSource] = useState<apiService.ShareSource>('dpaste');
-
-  // State to hold import info from a URL before user is authenticated
-  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   
-  const [isGuestSession, setIsGuestSession] = useState(false); // Kept for any other logic, but sharing won't create guests.
-  const [appDataVersion, setAppDataVersion] = useState(0);
+  const [isGuestSession, setIsGuestSession] = useState(false);
   const { t } = useI18n();
 
   const loadWorldAssets = async () => {
@@ -78,35 +67,52 @@ const App: React.FC = () => {
   };
 
   const loadInitialData = async () => {
+    // Always load assets first so the Auth screen looks correct even before login
+    await loadWorldAssets();
+
     const user = await apiService.getCurrentUser();
     if (user) {
         setCurrentUser(user);
-        await loadWorldAssets();
     }
   };
   
   useEffect(() => {
     const initializeApp = async () => {
-      let foundImport: PendingImport | null = null;
+      // Check for share links in the URL immediately
       if (window.location.hash.startsWith('#id=')) {
           const id = window.location.hash.substring(4);
-          if (id) foundImport = { type: 'id', value: id };
+          if (id) {
+              setSharedWorldId(id);
+              setSharedWorldSource('dpaste');
+          }
       } else if (window.location.hash.startsWith('#chunks=')) {
           const ids = window.location.hash.substring(8);
-          if (ids) foundImport = { type: 'chunks', value: ids };
+          if (ids) {
+              setSharedWorldId(ids);
+              setSharedWorldSource('dpaste-chunked');
+          }
       } else if (window.location.hash.startsWith('#fio=')) {
           const id = window.location.hash.substring(5);
-          if (id) foundImport = { type: 'fio', value: id };
+          if (id) {
+              setSharedWorldId(id);
+              setSharedWorldSource('fileio');
+          }
       } else if (window.location.hash.startsWith('#cdata=')) {
           const urlSafeBase64 = window.location.hash.substring(7);
-          if (urlSafeBase64) foundImport = { type: 'data', value: urlSafeBase64, isCompressed: true };
+          if (urlSafeBase64) {
+              setImportData(urlSafeBase64);
+              setImportIsCompressed(true);
+          }
       } else if (window.location.hash.startsWith('#data=')) {
           const urlSafeBase64 = window.location.hash.substring(6);
-          if (urlSafeBase64) foundImport = { type: 'data', value: urlSafeBase64, isCompressed: false };
+          if (urlSafeBase64) {
+              setImportData(urlSafeBase64);
+              setImportIsCompressed(false);
+          }
       }
 
-      if (foundImport) {
-          setPendingImport(foundImport);
+      // Clean up the URL so we don't re-trigger on refresh, but only after capturing state
+      if (window.location.hash) {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
       }
 
@@ -119,34 +125,16 @@ const App: React.FC = () => {
   const handleLogin = async (user: User) => {
     setCurrentUser(user);
     await apiService.saveCurrentUser(user);
+    // Reload assets just in case, though they should be loaded already
     await loadWorldAssets();
-
-    // Check if there is a pending import *after* login
-    if (pendingImport) {
-        if (pendingImport.type === 'id') {
-            setSharedWorldId(pendingImport.value);
-            setSharedWorldSource('dpaste');
-        } else if (pendingImport.type === 'chunks') {
-            setSharedWorldId(pendingImport.value); // value is "id1,id2,id3"
-            setSharedWorldSource('dpaste-chunked');
-        } else if (pendingImport.type === 'fio') {
-            setSharedWorldId(pendingImport.value);
-            setSharedWorldSource('fileio');
-        } else if (pendingImport.type === 'data') {
-            setImportData(pendingImport.value);
-            setImportIsCompressed(!!pendingImport.isCompressed);
-        }
-        setPendingImport(null); // Clear pending import
-    }
   };
 
   const handleLogout = async () => {
     setCurrentUser(null);
-    setLogoImageUrl(null);
-    setAuthBannerUrl(null);
     setActiveView({ type: 'home' });
     setIsGuestSession(false);
     await apiService.removeCurrentUser();
+    // We do NOT clear logo/banner here so the login screen stays branded
   };
 
   const handleLogoUpload = async (file: File) => {
@@ -181,12 +169,10 @@ const App: React.FC = () => {
           } else if (importData) {
                let jsonString = importData;
                if (importIsCompressed) {
-                  // The Base64 string from URL needs to be converted back to Uint8Array
                   const base64 = importData.replace(/-/g, '+').replace(/_/g, '/');
                   const compressedBytes = base64ToUint8Array(base64);
                   jsonString = await decompressData(compressedBytes);
                } else {
-                  // If raw data passed (legacy or small share), decode from base64
                   const decoded = atob(importData);
                   jsonString = decoded;
                }
@@ -212,66 +198,77 @@ const App: React.FC = () => {
       setImportData(null);
   };
 
-  if (!currentUser) {
-    return <AuthView onLogin={handleLogin} authBannerUrl={authBannerUrl} />;
-  }
+  const renderMainApp = () => {
+      const renderView = () => {
+        switch (activeView.type) {
+          case 'home':
+            return <HomeView userRole={currentUser!.role} />;
+          case 'characters':
+            return (
+                <CharacterView 
+                    characterType={activeView.subType || 'Main Protagonist'} 
+                    userRole={currentUser!.role}
+                />
+            );
+          case 'profile':
+            return <ProfileView user={currentUser!} onUserUpdate={(u) => { setCurrentUser(u); apiService.saveCurrentUser(u); apiService.saveUsers([u]); }} />;
+          default:
+            return <HomeView userRole={currentUser!.role} />;
+        }
+      };
 
-  const renderView = () => {
-    switch (activeView.type) {
-      case 'home':
-        return <HomeView userRole={currentUser.role} />;
-      case 'characters':
-        return (
-            <CharacterView 
-                characterType={activeView.subType || 'Main Protagonist'} 
-                userRole={currentUser.role}
+      let headerTitle = '';
+      if (activeView.type === 'home') headerTitle = t('header.titleHome');
+      else if (activeView.type === 'profile') headerTitle = t('header.titleProfile');
+      else if (activeView.type === 'characters') headerTitle = t('header.titleCharacters', { characterType: activeView.subType || '' });
+
+      return (
+        // Use h-[100dvh] for mobile browsers to handle address bars correctly, fallback to h-screen
+        <div className="flex h-screen h-[100dvh] overflow-hidden">
+          <Sidebar 
+            activeView={activeView} 
+            setActiveView={setActiveView} 
+            isSidebarOpen={isSidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+            logoImageUrl={logoImageUrl}
+            onLogoUpload={handleLogoUpload}
+            onAuthBannerUpload={handleAuthBannerUpload}
+            userRole={currentUser!.role}
+            isGuestSession={isGuestSession}
+          />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <Header 
+                title={headerTitle} 
+                onMenuClick={() => setSidebarOpen(true)} 
+                user={currentUser!}
+                onLogout={handleLogout}
+                isGuestSession={isGuestSession}
             />
-        );
-      case 'profile':
-        return <ProfileView user={currentUser} onUserUpdate={(u) => { setCurrentUser(u); apiService.saveCurrentUser(u); apiService.saveUsers([u]); }} />; // Simple single user update
-      default:
-        return <HomeView userRole={currentUser.role} />;
-    }
+            <main className="flex-1 overflow-x-hidden overflow-y-auto">
+              {renderView()}
+            </main>
+          </div>
+        </div>
+      );
   };
 
-  let headerTitle = '';
-  if (activeView.type === 'home') headerTitle = t('header.titleHome');
-  else if (activeView.type === 'profile') headerTitle = t('header.titleProfile');
-  else if (activeView.type === 'characters') headerTitle = t('header.titleCharacters', { characterType: activeView.subType || '' });
-
   return (
-    // Use h-[100dvh] for mobile browsers to handle address bars correctly, fallback to h-screen
-    <div className="flex h-screen h-[100dvh] overflow-hidden">
-      <Sidebar 
-        activeView={activeView} 
-        setActiveView={setActiveView} 
-        isSidebarOpen={isSidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        logoImageUrl={logoImageUrl}
-        onLogoUpload={handleLogoUpload}
-        onAuthBannerUpload={handleAuthBannerUpload}
-        userRole={currentUser.role}
-        isGuestSession={isGuestSession}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-            title={headerTitle} 
-            onMenuClick={() => setSidebarOpen(true)} 
-            user={currentUser}
-            onLogout={handleLogout}
-            isGuestSession={isGuestSession}
-        />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto">
-          {renderView()}
-        </main>
-      </div>
+    <>
+      {/* Auth View or Main App */}
+      {!currentUser ? (
+        <AuthView onLogin={handleLogin} authBannerUrl={authBannerUrl} />
+      ) : (
+        renderMainApp()
+      )}
+
+      {/* Import Modal - Now sits above everything, accessible even before login */}
       {(sharedWorldId || importData) && (
           <ImportModal 
             onConfirm={handleConfirmImport}
             onDismiss={handleDismissImport}
           />
       )}
-    </div>
+    </>
   );
 };
 
