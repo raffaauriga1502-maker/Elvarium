@@ -1,5 +1,6 @@
 
 
+
 import { User, Character, CharacterType } from '../types';
 import * as idbService from './idbService';
 
@@ -306,15 +307,27 @@ export const importAllData = async (data: any): Promise<void> => {
         }
     }
     
-    // Import IndexedDB data if it exists
+    // Import IndexedDB data using Bulk Operation
+    const imagesToSave: Record<string, Blob> = {};
     if (data.indexedDB) {
         for (const key in data.indexedDB) {
             if (Object.prototype.hasOwnProperty.call(data.indexedDB, key)) {
-                const dataUrl = data.indexedDB[key];
-                const blob = dataUrlToBlob(dataUrl);
-                await idbService.setImage(key, blob);
+                try {
+                    const dataUrl = data.indexedDB[key];
+                    // Basic validation
+                    if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+                         const blob = dataUrlToBlob(dataUrl);
+                         imagesToSave[key] = blob;
+                    }
+                } catch (e) {
+                    console.warn(`Skipping invalid image data for key ${key}`, e);
+                }
             }
         }
+    }
+    
+    if (Object.keys(imagesToSave).length > 0) {
+        await idbService.setImagesBulk(imagesToSave);
     }
 };
 

@@ -1,3 +1,4 @@
+
 // services/idbService.ts
 
 const DB_NAME = 'ElvariumDB';
@@ -40,10 +41,37 @@ export async function setImage(key: string, blob: Blob): Promise<void> {
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(blob, key);
 
-    request.onsuccess = () => resolve();
+    // Critical: We must wait for transaction.oncomplete, not just request.onsuccess
+    // to ensure data is actually flushed to disk before resolving.
+    transaction.oncomplete = () => resolve();
+    
+    transaction.onerror = () => {
+      console.error('Error saving to IndexedDB:', transaction.error);
+      reject(transaction.error);
+    };
+    
     request.onerror = () => {
-      console.error('Error saving to IndexedDB:', request.error);
-      reject(request.error);
+       // Fallback log if request fails before transaction
+       console.error('Request error saving to IndexedDB:', request.error);
+    };
+  });
+}
+
+export async function setImagesBulk(images: Record<string, Blob>): Promise<void> {
+  const dbInstance = await getDB();
+  return new Promise((resolve, reject) => {
+    const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+
+    Object.entries(images).forEach(([key, blob]) => {
+        store.put(blob, key);
+    });
+
+    transaction.oncomplete = () => resolve();
+    
+    transaction.onerror = () => {
+      console.error('Bulk save failed:', transaction.error);
+      reject(transaction.error);
     };
   });
 }
@@ -114,10 +142,11 @@ export async function clearImages(): Promise<void> {
         const store = transaction.objectStore(STORE_NAME);
         const request = store.clear();
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => {
-            console.error('Error clearing IndexedDB store:', request.error);
-            reject(request.error);
+        transaction.oncomplete = () => resolve();
+        
+        transaction.onerror = () => {
+            console.error('Error clearing IndexedDB store:', transaction.error);
+            reject(transaction.error);
         };
     });
 }

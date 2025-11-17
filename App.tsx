@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './components/Header';
@@ -188,10 +190,10 @@ const App: React.FC = () => {
               // Clean URL before hard reload
               window.history.replaceState(null, '', window.location.pathname);
               
-              // Short delay to ensure IDB transactions flush
+              // Extended delay to ensure IDB transactions flush to disk on slower devices
               setTimeout(() => {
                   window.location.reload();
-              }, 500);
+              }, 1500);
           }
       } catch (error: any) {
           console.error("Import failed:", error);
