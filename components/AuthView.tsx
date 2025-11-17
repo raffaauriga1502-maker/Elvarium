@@ -1,3 +1,4 @@
+
 import React, { useState, FormEvent, useEffect } from 'react';
 import { User } from '../types';
 import * as apiService from '../services/apiService';
@@ -90,7 +91,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
   }
 
   return (
-    <div className="w-full h-screen flex items-center justify-center bg-primary p-4">
+    <div className="w-full h-screen flex items-center justify-center p-4">
        <div className="w-full max-w-sm mx-auto bg-crystalline rounded-xl shadow-2xl overflow-hidden border border-secondary/50">
           <div className="h-40 bg-primary">
             {authBannerUrl ? (

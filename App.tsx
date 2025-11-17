@@ -105,220 +105,163 @@ const App: React.FC = () => {
 
       await loadInitialData();
     };
+
     initializeApp();
   }, []);
-  
-  // Effect to handle a pending import once we know if a user is logged in or not
-  useEffect(() => {
-    if (!pendingImport) return;
 
-    if (currentUser) {
-        // Logged-in user: show the confirmation modal to overwrite their data.
+  const handleLogin = async (user: User) => {
+    setCurrentUser(user);
+    await apiService.saveCurrentUser(user);
+    await loadWorldAssets();
+
+    // Check if there is a pending import *after* login
+    if (pendingImport) {
         if (pendingImport.type === 'id') {
             setSharedWorldId(pendingImport.value);
-        } else {
+        } else if (pendingImport.type === 'data') {
             setImportData(pendingImport.value);
             setImportIsCompressed(!!pendingImport.isCompressed);
         }
-    }
-    // If there's no currentUser, AuthView will be shown. `handleLogin` will perform the import.
-  }, [currentUser, pendingImport]);
-
-
-  const performImport = async (source: PendingImport) => {
-    try {
-        let data;
-        if (source.type === 'id') {
-            data = await apiService.fetchSharedWorldData(source.value);
-        } else { // 'data'
-            let jsonString;
-            const base64String = source.value.replace(/-/g, '+').replace(/_/g, '/');
-            if (source.isCompressed) {
-                const compressedBytes = base64ToUint8Array(base64String);
-                jsonString = await decompressData(compressedBytes);
-            } else {
-                jsonString = decodeURIComponent(escape(window.atob(base64String)));
-            }
-            data = JSON.parse(jsonString);
-        }
-
-        await apiService.importAllData(data);
-        await loadWorldAssets();
-        setAppDataVersion(v => v + 1);
-
-    } catch (error) {
-        console.error("Failed to import data:", error);
-        throw new Error(t('app.errors.importFailed'));
-    }
-  };
-
-
-  const handleImportConfirm = async () => {
-    const source = sharedWorldId 
-        ? { type: 'id' as const, value: sharedWorldId }
-        : { type: 'data' as const, value: importData!, isCompressed: importIsCompressed };
-    
-    try {
-        await performImport(source);
-        // Clean up modal and pending state
-        setImportData(null);
-        setSharedWorldId(null);
-        setPendingImport(null);
-    } catch (error) {
-        // On error, dismiss the modal and clean up state
-        setImportData(null);
-        setSharedWorldId(null);
-        setPendingImport(null);
-        // Re-throw for the modal to display the error message
-        throw error;
-    }
-  };
-
-  const handleImportDismiss = () => {
-    setImportData(null);
-    setSharedWorldId(null);
-    setPendingImport(null); // The user cancelled, so clear the pending task.
-  };
-
-  const handleLogin = async (user: User) => {
-    // Set the new user as current
-    setCurrentUser(user);
-    await apiService.saveCurrentUser(user);
-    setIsGuestSession(false);
-
-    // If there was a pending import, perform it for the new user.
-    if (pendingImport) {
-        try {
-            await performImport(pendingImport);
-        } catch (error: any) {
-            // If import fails after login, alert the user but let them continue.
-            alert(error.message || t('app.errors.importFailed'));
-        } finally {
-            // Always clear the pending import after attempting it.
-            setPendingImport(null);
-        }
+        setPendingImport(null); // Clear pending import
     }
   };
 
   const handleLogout = async () => {
     setCurrentUser(null);
-    await apiService.removeCurrentUser();
+    setLogoImageUrl(null);
+    setAuthBannerUrl(null);
+    setActiveView({ type: 'home' });
     setIsGuestSession(false);
+    await apiService.removeCurrentUser();
   };
 
   const handleLogoUpload = async (file: File) => {
     try {
-        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 400, maxHeight: 400 });
+        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 500, maxHeight: 200 });
         await apiService.saveLogo(imageKey);
         const resolvedUrl = await apiService.resolveImageUrl(imageKey);
         setLogoImageUrl(resolvedUrl);
     } catch (error) {
-        console.error("Error processing logo image:", error);
+        console.error("Error processing logo:", error);
         alert(t('app.errors.logoProcessing'));
     }
   };
 
   const handleAuthBannerUpload = async (file: File) => {
     try {
-        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 800, maxHeight: 400, quality: 0.8 });
+        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 800, maxHeight: 300 });
         await apiService.saveAuthBanner(imageKey);
         const resolvedUrl = await apiService.resolveImageUrl(imageKey);
         setAuthBannerUrl(resolvedUrl);
     } catch (error) {
-        console.error("Error processing auth banner image:", error);
-        alert(t('app.errors.authBannerProcessing'));
+         console.error("Error processing auth banner:", error);
+         alert(t('app.errors.authBannerProcessing'));
+    }
+  }
+  
+  const handleConfirmImport = async () => {
+      try {
+          let dataToImport;
+          if (sharedWorldId) {
+               dataToImport = await apiService.fetchSharedWorldData(sharedWorldId);
+          } else if (importData) {
+               let jsonString = importData;
+               if (importIsCompressed) {
+                  // The Base64 string from URL needs to be converted back to Uint8Array
+                  // We use a modified base64 decoder that handles URL-safe strings if needed,
+                  // though standard atob often works if padding is correct.
+                  // For robustness, ensure standard base64 chars.
+                  const base64 = importData.replace(/-/g, '+').replace(/_/g, '/');
+                  const compressedBytes = base64ToUint8Array(base64);
+                  jsonString = await decompressData(compressedBytes);
+               } else {
+                  // If raw data passed (legacy or small share), decode from base64
+                  const decoded = atob(importData);
+                   // Decode URI component in case of special chars, though base64 usually handles this.
+                   // Actually, straightforward base64 decode for JSON string is safer.
+                  jsonString = decoded;
+               }
+               dataToImport = JSON.parse(jsonString);
+          }
+
+          if (dataToImport) {
+              await apiService.importAllData(dataToImport);
+              // Refresh logic: Reload page to ensure all states (like context, caches) are fresh
+               window.location.href = window.location.pathname;
+          }
+      } catch (error: any) {
+          console.error("Import failed:", error);
+          throw new Error(t('app.errors.importFailed'));
+      } finally {
+          setSharedWorldId(null);
+          setImportData(null);
+      }
+  };
+
+  const handleDismissImport = () => {
+      setSharedWorldId(null);
+      setImportData(null);
+  };
+
+  if (!currentUser) {
+    return <AuthView onLogin={handleLogin} authBannerUrl={authBannerUrl} />;
+  }
+
+  const renderView = () => {
+    switch (activeView.type) {
+      case 'home':
+        return <HomeView userRole={currentUser.role} />;
+      case 'characters':
+        return (
+            <CharacterView 
+                characterType={activeView.subType || 'Main Protagonist'} 
+                userRole={currentUser.role}
+            />
+        );
+      case 'profile':
+        return <ProfileView user={currentUser} onUserUpdate={(u) => { setCurrentUser(u); apiService.saveCurrentUser(u); apiService.saveUsers([u]); }} />; // Simple single user update
+      default:
+        return <HomeView userRole={currentUser.role} />;
     }
   };
 
-  const handleUserUpdate = async (updatedUser: User) => {
-    const oldUser = currentUser;
-    setCurrentUser(updatedUser); // Optimistic update
-    try {
-        await apiService.saveCurrentUser(updatedUser);
-        const users = await apiService.getUsers();
-        const updatedUsers = users.map(u => u.username === updatedUser.username ? updatedUser : u);
-        await apiService.saveUsers(updatedUsers);
-    } catch (error) {
-        console.error("Failed to update user:", error);
-        if (oldUser) setCurrentUser(oldUser); // Rollback
-        throw error;
-    }
-  }
+  let headerTitle = '';
+  if (activeView.type === 'home') headerTitle = t('header.titleHome');
+  else if (activeView.type === 'profile') headerTitle = t('header.titleProfile');
+  else if (activeView.type === 'characters') headerTitle = t('header.titleCharacters', { characterType: activeView.subType || '' });
 
-  const renderAppContent = () => {
-    if (!currentUser) {
-      return <AuthView onLogin={handleLogin} authBannerUrl={authBannerUrl} />;
-    }
-    const renderContent = () => {
-      switch (activeView.type) {
-        case 'home':
-          return <HomeView userRole={currentUser.role} />;
-        case 'profile':
-          return <ProfileView user={currentUser} onUserUpdate={handleUserUpdate} />;
-        case 'characters':
-          return <CharacterView characterType={activeView.subType} userRole={currentUser.role} />;
-        default:
-          return <HomeView userRole={currentUser.role} />;
-      }
-    };
-    const getTitle = () => {
-       switch (activeView.type) {
-        case 'home':
-          return t('header.titleHome');
-        case 'profile':
-          return t('header.titleProfile');
-        case 'characters':
-          const characterTypeLabels: Record<CharacterType, string> = {
-            'Main Protagonist': t('sidebar.characterTypes.mainProtagonist'),
-            'Allies': t('sidebar.characterTypes.allies'),
-            'Enemies': t('sidebar.characterTypes.enemies'),
-            'Main Antagonist': t('sidebar.characterTypes.enemies'),
-          };
-          const translatedType = characterTypeLabels[activeView.subType] || activeView.subType;
-          return t('header.titleCharacters', { characterType: translatedType });
-        default:
-          return 'Elvarium Dashboard';
-      }
-    }
-    return (
-      <div className="flex h-screen bg-primary font-serif">
-        <Sidebar 
-          activeView={activeView} 
-          setActiveView={setActiveView} 
-          isSidebarOpen={isSidebarOpen} 
-          setSidebarOpen={setSidebarOpen} 
-          logoImageUrl={logoImageUrl}
-          onLogoUpload={handleLogoUpload}
-          onAuthBannerUpload={handleAuthBannerUpload}
-          userRole={currentUser.role}
-          isGuestSession={isGuestSession}
-        />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header 
-            title={getTitle()} 
-            onMenuClick={() => setSidebarOpen(!isSidebarOpen)}
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar 
+        activeView={activeView} 
+        setActiveView={setActiveView} 
+        isSidebarOpen={isSidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        logoImageUrl={logoImageUrl}
+        onLogoUpload={handleLogoUpload}
+        onAuthBannerUpload={handleAuthBannerUpload}
+        userRole={currentUser.role}
+        isGuestSession={isGuestSession}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header 
+            title={headerTitle} 
+            onMenuClick={() => setSidebarOpen(true)} 
             user={currentUser}
             onLogout={handleLogout}
             isGuestSession={isGuestSession}
-          />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-primary relative">
-            <div className="min-h-full" key={appDataVersion}>
-              {renderContent()}
-            </div>
-          </main>
-        </div>
+        />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          {renderView()}
+        </main>
       </div>
-    );
-  }
-
-  return (
-    <>
-      {(importData || sharedWorldId) && (
-        <ImportModal onConfirm={handleImportConfirm} onDismiss={handleImportDismiss} />
+      {(sharedWorldId || importData) && (
+          <ImportModal 
+            onConfirm={handleConfirmImport}
+            onDismiss={handleDismissImport}
+          />
       )}
-      {/* Render app content only when the modal is not active to prevent flashing of old content */}
-      {!(importData || sharedWorldId) && renderAppContent()}
-    </>
+    </div>
   );
 };
 

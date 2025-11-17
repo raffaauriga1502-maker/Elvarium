@@ -353,7 +353,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
     } : undefined;
 
   return (
-    <div className="bg-characters-dark-blue min-h-full p-6 md:p-8 relative" style={bgStyle}>
+    <div className="min-h-full p-6 md:p-8 relative" style={bgStyle}>
         {userRole === 'admin' && !selectedCharacter && (
              <div className="absolute top-4 right-4 z-10">
                 <label className="bg-secondary/80 hover:bg-secondary text-text-primary p-2 rounded-full cursor-pointer transition-colors backdrop-blur-sm flex items-center justify-center shadow-md border border-slate-600" title={t('characterCard.editBackground')}>
