@@ -129,21 +129,26 @@ export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> 
         request.onsuccess = (event) => {
             const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
             if (cursor) {
-                const p = new Promise<void>((resolveRead, rejectRead) => {
-                    const blob = cursor.value as Blob;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        if (e.target?.result) {
-                            results[cursor.key as string] = e.target.result as string;
-                            resolveRead();
-                        } else {
-                            rejectRead(new Error(`FileReader failed for key ${cursor.key}`));
-                        }
-                    };
-                    reader.onerror = () => rejectRead(reader.error);
-                    reader.readAsDataURL(blob);
-                });
-                promises.push(p);
+                // Ensure the value is actually a Blob before trying to read it
+                if (cursor.value instanceof Blob) {
+                    const p = new Promise<void>((resolveRead, rejectRead) => {
+                        const blob = cursor.value as Blob;
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            if (e.target?.result) {
+                                results[cursor.key as string] = e.target.result as string;
+                                resolveRead();
+                            } else {
+                                rejectRead(new Error(`FileReader failed for key ${cursor.key}`));
+                            }
+                        };
+                        reader.onerror = () => rejectRead(reader.error);
+                        reader.readAsDataURL(blob);
+                    });
+                    promises.push(p);
+                } else {
+                    console.warn(`Skipping non-blob value in IndexedDB for key ${cursor.key}`);
+                }
                 cursor.continue();
             }
         };

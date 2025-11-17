@@ -143,17 +143,21 @@ export const resolveImageUrl = async (key: string | null | undefined, retry = tr
         try {
             let blob = await idbService.getImage(key);
             
-            // Retry mechanism: If blob is null, wait a moment and try again.
-            // This helps when the DB is busy immediately after a page reload/import.
+            // Aggressive Retry: IDB might be slow on cold boot or after heavy write
             if (!blob && retry) {
-                await new Promise(r => setTimeout(r, 100));
-                blob = await idbService.getImage(key);
+                for (let i = 0; i < 3; i++) {
+                    await new Promise(r => setTimeout(r, 200 * (i + 1))); // 200ms, 400ms, 600ms
+                    blob = await idbService.getImage(key);
+                    if (blob) break;
+                }
             }
 
             if (blob) {
                 const objectUrl = URL.createObjectURL(blob);
                 urlCache.set(key, objectUrl);
                 return objectUrl;
+            } else {
+                console.warn(`Image blob not found for key: ${key} after retries`);
             }
         } catch (e) {
             console.warn(`Failed to resolve image for key ${key}`, e);
