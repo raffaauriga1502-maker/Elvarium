@@ -135,13 +135,21 @@ export const processAndStoreImage = async (file: File, options: { maxWidth: numb
 // A cache to avoid creating multiple object URLs for the same blob
 const urlCache = new Map<string, string>();
 
-export const resolveImageUrl = async (key: string | null | undefined): Promise<string | null> => {
+export const resolveImageUrl = async (key: string | null | undefined, retry = true): Promise<string | null> => {
     if (!key) return null;
     if (urlCache.has(key)) return urlCache.get(key)!;
 
     if (key.startsWith('idb://')) {
         try {
-            const blob = await idbService.getImage(key);
+            let blob = await idbService.getImage(key);
+            
+            // Retry mechanism: If blob is null, wait a moment and try again.
+            // This helps when the DB is busy immediately after a page reload/import.
+            if (!blob && retry) {
+                await new Promise(r => setTimeout(r, 100));
+                blob = await idbService.getImage(key);
+            }
+
             if (blob) {
                 const objectUrl = URL.createObjectURL(blob);
                 urlCache.set(key, objectUrl);
