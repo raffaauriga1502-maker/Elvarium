@@ -92,6 +92,7 @@ const NavLink: React.FC<{
 const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarOpen, setSidebarOpen, logoImageUrl, onLogoUpload, onAuthBannerUpload, userRole, isGuestSession = false }) => {
   const [isCharactersExpanded, setCharactersExpanded] = useState(true);
   const [shareStatus, setShareStatus] = useState<'idle' | 'generating' | 'copied' | 'error'>('idle');
+  const [progressMessage, setProgressMessage] = useState('');
   const { t } = useI18n();
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
@@ -156,8 +157,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
 
   const handleGenerateShareLink = async () => {
     setShareStatus('generating');
+    setProgressMessage(t('sidebar.generating'));
     try {
-      const result = await apiService.generateShareableLink();
+      const result = await apiService.generateShareableLink((status) => {
+          setProgressMessage(status);
+      });
       
       try {
           // Attempt automatic copy
@@ -295,11 +299,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
                 <h3 className="text-xs font-semibold uppercase text-text-secondary mb-2 pl-2">{t('sidebar.shareAndBackup')}</h3>
                 <button 
                     onClick={handleGenerateShareLink} 
-                    className="w-full text-left text-sm p-2 rounded-md text-text-primary hover:bg-secondary hover:text-white transition-colors"
+                    disabled={shareStatus === 'generating'}
+                    className="w-full text-left text-sm p-2 rounded-md text-text-primary hover:bg-secondary hover:text-white transition-colors disabled:opacity-70 disabled:cursor-wait"
                     aria-label={t('sidebar.aria.generateShareLink')}
                 >
                     {shareStatus === 'idle' && t('sidebar.copyShareLink')}
-                    {shareStatus === 'generating' && t('sidebar.generating')}
+                    {shareStatus === 'generating' && (progressMessage || t('sidebar.generating'))}
                     {shareStatus === 'copied' && t('sidebar.copied')}
                     {shareStatus === 'error' && t('sidebar.error')}
                 </button>

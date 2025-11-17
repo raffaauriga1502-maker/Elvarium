@@ -436,6 +436,23 @@ function chunkString(str: string, length: number): string[] {
   return str.match(new RegExp('.{1,' + length + '}', 'g')) || [];
 }
 
+// Helper: Fetch with timeout to prevent infinite hangs
+async function fetchWithTimeout(resource: RequestInfo, options: RequestInit = {}, timeout = 30000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(resource, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        throw error;
+    }
+}
+
 async function processInBatches<T, R>(items: T[], batchSize: number, processItem: (item: T) => Promise<R>): Promise<R[]> {
     const results: R[] = [];
     for (let i = 0; i < items.length; i += batchSize) {
@@ -455,7 +472,7 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
         let textData = '';
 
         if (source === 'fileio') {
-            const response = await fetch(`https://file.io/${idOrIds}`);
+            const response = await fetchWithTimeout(`https://file.io/${idOrIds}`);
              if (!response.ok) {
                  if (response.status === 404) {
                       throw new Error("The shared file has been deleted or already downloaded. File.io links are valid for 1 download only.");
@@ -467,13 +484,13 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
             const ids = idOrIds.split(',');
             // Use smaller batch size for fetching to be safe
             const chunks = await processInBatches(ids, 3, async (id) => {
-                 const response = await fetch(`https://dpaste.com/${id}.txt`);
+                 const response = await fetchWithTimeout(`https://dpaste.com/${id}.txt`);
                  if (!response.ok) throw new Error(`Failed to fetch chunk ${id}`);
                  return response.text();
             });
             textData = chunks.join('');
         } else {
-            const response = await fetch(`https://dpaste.com/${idOrIds}.txt`);
+            const response = await fetchWithTimeout(`https://dpaste.com/${idOrIds}.txt`);
             if (!response.ok) {
                 throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
             }
@@ -504,10 +521,10 @@ const uploadToFileIo = async (payloadString: string): Promise<string> => {
      const formData = new FormData();
      formData.append('file', blob, 'elvarium_world.json');
      
-     const response = await fetch('https://file.io/', {
+     const response = await fetchWithTimeout('https://file.io/', {
          method: 'POST',
          body: formData
-     });
+     }, 60000); // 60s timeout for larger files
      
      if (!response.ok) throw new Error(`File.io upload failed: ${response.statusText}`);
      const json = await response.json();
@@ -523,7 +540,7 @@ const uploadToDpaste = async (content: string): Promise<string> => {
     formData.append('syntax', 'json');
     formData.append('title', 'Elvarium Shared World Chunk');
     
-    const response = await fetch('https://dpaste.com/api/', {
+    const response = await fetchWithTimeout('https://dpaste.com/api/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -552,11 +569,12 @@ const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<st
 }
 
 
-export const generateShareableLink = async (): Promise<{url: string, warning?: string}> => {
+export const generateShareableLink = async (onProgress?: (message: string) => void): Promise<{url: string, warning?: string}> => {
     const SHAREABLE_LOCAL_STORAGE_KEYS = APP_KEYS.filter(
         key => key !== 'elvarium_users' && key !== 'elvarium_current_user'
     );
     
+    onProgress?.("Reading data...");
     const localStorageData: { [key: string]: any } = {};
     for (const key of SHAREABLE_LOCAL_STORAGE_KEYS) {
         const data = await getItem(key);
@@ -565,6 +583,7 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
         }
     }
     
+    onProgress?.("Reading images...");
     const indexedDBData = await idbService.getAllImagesAsDataUrls();
     
     const dataToShare = {
@@ -575,6 +594,7 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     const rawJsonString = JSON.stringify(dataToShare);
     
     if (!isCompressionSupported()) {
+        onProgress?.("Uploading (No Compression)...");
         const payloadObject = { compressed: false, data: btoa(rawJsonString) };
         const payloadString = JSON.stringify(payloadObject);
          try {
@@ -586,6 +606,7 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
         }
     }
     
+    onProgress?.("Compressing...");
     const compressedBytes = await compressData(rawJsonString);
     const base64Compressed = uint8ArrayToBase64(compressedBytes);
     
@@ -606,6 +627,7 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     const MAX_CHUNKS = 200; 
 
     if (sizeInBytes < SINGLE_PASTE_LIMIT) {
+        onProgress?.("Uploading...");
         try {
             const pasteId = await uploadToDpasteWithRetry(payloadString);
             url.hash = `#id=${pasteId}`;
@@ -618,10 +640,14 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     if (sizeInBytes < SINGLE_PASTE_LIMIT * MAX_CHUNKS) {
         try {
             const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
+            let uploadedCount = 0;
             // Reduced concurrency from 5 to 3 to avoid rate limits
             const ids = await processInBatches(chunks, 3, async (chunk) => {
                 await new Promise(r => setTimeout(r, 100));
-                return await uploadToDpasteWithRetry(chunk);
+                const res = await uploadToDpasteWithRetry(chunk);
+                uploadedCount++;
+                onProgress?.(`Uploading part ${uploadedCount}/${chunks.length}...`);
+                return res;
             });
             
             url.hash = `#chunks=${ids.join(',')}`;
@@ -632,6 +658,7 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     }
 
     try {
+        onProgress?.("Uploading large file...");
         const pasteId = await uploadToFileIo(payloadString);
         url.hash = `#fio=${pasteId}`;
         return { 
@@ -640,7 +667,7 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
         };
     } catch (error: any) {
         console.error("All sharing services failed:", error);
-        throw new Error("Could not share. Data is too large.");
+        throw new Error("Could not share. Data is too large or network failed.");
     }
 };
 
