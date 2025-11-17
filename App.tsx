@@ -231,7 +231,8 @@ const App: React.FC = () => {
   else if (activeView.type === 'characters') headerTitle = t('header.titleCharacters', { characterType: activeView.subType || '' });
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    // Use h-[100dvh] for mobile browsers to handle address bars correctly, fallback to h-screen
+    <div className="flex h-screen h-[100dvh] overflow-hidden">
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 

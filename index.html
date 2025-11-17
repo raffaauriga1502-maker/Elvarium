@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Elvarium Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,66 +30,42 @@
       }
     </script>
     <style>
-      @keyframes shimmer {
-        0% { background-position: 0% 0%; }
-        100% { background-position: 100% 100%; }
-      }
-      @keyframes subtle-shimmer {
-        0% { background-position: 100% 100%; }
-        100% { background-position: 0% 0%; }
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* App handles scrolling internally */
+        background-color: #0F172A;
       }
 
       body {
-        background-color: #0F172A; /* primary */
-        /* A more complex, faceted background to feel less hollow */
+        /* A unified, full-screen faceted background */
         background-image: 
-          linear-gradient(335deg, rgba(56, 189, 248, 0.08), transparent 30%),
-          linear-gradient(155deg, rgba(56, 189, 248, 0.08), transparent 30%),
-          linear-gradient(25deg, rgba(56, 189, 248, 0.08), transparent 30%),
-          linear-gradient(205deg, rgba(56, 189, 248, 0.08), transparent 30%),
-          radial-gradient(circle at center, rgba(56, 189, 248, 0.05) 0%, transparent 50%);
-        background-size: 40em 40em;
+          radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.15), transparent 60%),
+          linear-gradient(120deg, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+          linear-gradient(240deg, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+          repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 50px),
+          repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 1px, transparent 1px, transparent 50px);
+        background-size: 100% 100%, 100% 100%, 100% 100%, 100px 100px, 100px 100px;
         background-attachment: fixed;
-        animation: shimmer 40s linear infinite alternate;
+        background-position: center;
       }
+
+      /* Glassmorphism: Replaces opaque backgrounds to let the main background show through */
       .bg-crystalline {
-        background-color: #1E293B; /* secondary slate-800 */
-        background-image:
-          linear-gradient(160deg, rgba(56, 189, 248, 0.04) 5%, transparent 40%),
-          linear-gradient(340deg, rgba(56, 189, 248, 0.05) 10%, transparent 50%),
-          linear-gradient(45deg, rgba(15, 23, 42, 0.3) 0%, transparent 60%),
-          linear-gradient(215deg, rgba(15, 23, 42, 0.4) 0%, transparent 70%);
-        background-size: 20em 20em;
-        animation: subtle-shimmer 60s linear infinite alternate;
+        background-color: rgba(15, 23, 42, 0.75); /* Dark slate with opacity */
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
       }
-      .bg-home-blue {
-        background-color: #1E40AF; /* A rich blue */
-        background-image:
-          linear-gradient(160deg, rgba(56, 189, 248, 0.1) 5%, transparent 40%),
-          linear-gradient(340deg, rgba(56, 189, 248, 0.12) 10%, transparent 50%),
-          linear-gradient(45deg, rgba(15, 23, 42, 0.2) 0%, transparent 60%),
-          radial-gradient(circle at 15% 50%, rgba(56, 189, 248, 0.15), transparent 40%);
-        background-size: 25em 25em;
-        animation: subtle-shimmer 50s linear infinite alternate;
-      }
-      .bg-characters-dark-blue {
-        background-color: #020617; /* A deep, dark blue */
-        background-image:
-          linear-gradient(160deg, rgba(56, 189, 248, 0.05) 5%, transparent 45%),
-          linear-gradient(340deg, rgba(56, 189, 248, 0.06) 10%, transparent 55%),
-          linear-gradient(215deg, rgba(15, 23, 42, 0.5) 0%, transparent 70%);
-        background-size: 30em 30em;
-        animation: subtle-shimmer 70s linear infinite alternate;
-      }
+
+      /* Legacy opaque classes - made transparent to fix "half" background issues if used */
+      .bg-home-blue, 
+      .bg-characters-dark-blue, 
       .bg-profile-purple {
-        background-color: #2E1065; /* A deep indigo/purple */
-        background-image:
-          linear-gradient(200deg, rgba(217, 70, 239, 0.08) 5%, transparent 40%), /* Fuchsia hint */
-          linear-gradient(340deg, rgba(250, 204, 21, 0.06) 10%, transparent 50%), /* Amber hint */
-          linear-gradient(45deg, rgba(15, 23, 42, 0.3) 0%, transparent 60%),
-          radial-gradient(circle at 80% 20%, rgba(217, 70, 239, 0.1), transparent 40%);
-        background-size: 28em 28em;
-        animation: subtle-shimmer 65s linear infinite alternate;
+        background-color: transparent; 
+        background-image: none;
       }
     </style>
   <script type="importmap">
@@ -105,7 +81,7 @@
 </script>
 </head>
   <body class="text-text-primary">
-    <div id="root"></div>
+    <div id="root" class="h-full"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
