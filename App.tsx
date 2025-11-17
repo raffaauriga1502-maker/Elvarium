@@ -47,6 +47,7 @@ const App: React.FC = () => {
   const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authBannerUrl, setAuthBannerUrl] = useState<string | null>(null);
+  const [homeBgUrl, setHomeBgUrl] = useState<string | null>(null);
   
   // State for triggering the import modal
   const [importData, setImportData] = useState<string | null>(null);
@@ -58,12 +59,14 @@ const App: React.FC = () => {
   const { t } = useI18n();
 
   const loadWorldAssets = async () => {
-    const [logoKey, authBannerKey] = await Promise.all([
+    const [logoKey, authBannerKey, homeBgKey] = await Promise.all([
         apiService.getLogo(),
         apiService.getAuthBanner(),
+        apiService.getHomeBackground(),
     ]);
     if (logoKey) apiService.resolveImageUrl(logoKey).then(setLogoImageUrl);
     if (authBannerKey) apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
+    if (homeBgKey) apiService.resolveImageUrl(homeBgKey).then(setHomeBgUrl);
   };
 
   const loadInitialData = async () => {
@@ -256,7 +259,12 @@ const App: React.FC = () => {
     <>
       {/* Auth View or Main App */}
       {!currentUser ? (
-        <AuthView onLogin={handleLogin} authBannerUrl={authBannerUrl} />
+        <AuthView 
+            onLogin={handleLogin} 
+            authBannerUrl={authBannerUrl} 
+            logoUrl={logoImageUrl}
+            backgroundImageUrl={homeBgUrl}
+        />
       ) : (
         renderMainApp()
       )}

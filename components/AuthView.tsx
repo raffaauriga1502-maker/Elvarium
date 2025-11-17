@@ -7,9 +7,11 @@ import { useI18n } from '../contexts/I18nContext';
 interface AuthViewProps {
   onLogin: (user: User) => void;
   authBannerUrl: string | null;
+  logoUrl?: string | null;
+  backgroundImageUrl?: string | null;
 }
 
-const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
+const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl, logoUrl, backgroundImageUrl }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -105,10 +107,26 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
     setAdminCode('');
   }
 
+  const containerStyle = backgroundImageUrl ? {
+      backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.8)), url(${backgroundImageUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed'
+  } : undefined;
+
   return (
-    <div className="w-full h-screen flex items-center justify-center p-4">
-       <div className="w-full max-w-sm mx-auto bg-crystalline rounded-xl shadow-2xl overflow-hidden border border-secondary/50">
-          <div className="h-40 bg-primary">
+    <div 
+        className="w-full h-screen flex flex-col items-center justify-center p-4 transition-all duration-700 ease-in-out" 
+        style={containerStyle}
+    >
+       {logoUrl && (
+           <div className="mb-8 animate-fade-in">
+               <img src={logoUrl} alt="App Logo" className="max-h-24 max-w-[200px] object-contain drop-shadow-lg" />
+           </div>
+       )}
+
+       <div className="w-full max-w-sm mx-auto bg-crystalline rounded-xl shadow-2xl overflow-hidden border border-secondary/50 animate-fade-in">
+          <div className="h-40 bg-primary relative">
             {authBannerUrl ? (
                 <img src={authBannerUrl} alt="Login Banner" className="w-full h-full object-cover" />
             ) : (
@@ -122,8 +140,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                     }}
                 ></div>
             )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
           </div>
-          <div className="p-8">
+          <div className="p-8 relative">
             <div className="text-center mb-6">
                     <h2 
                         className="text-2xl font-semibold text-white font-display"
@@ -132,8 +151,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                     </h2>
             </div>
             
-            {error && <p className="bg-red-900/50 text-red-300 p-3 rounded-md text-center mb-4 text-sm">{error}</p>}
-            {info && !error && <p className="bg-sky-900/50 text-sky-300 p-3 rounded-md text-center mb-4 text-sm">{info}</p>}
+            {error && <p className="bg-red-900/50 text-red-300 p-3 rounded-md text-center mb-4 text-sm border border-red-700/50">{error}</p>}
+            {info && !error && <p className="bg-sky-900/50 text-sky-300 p-3 rounded-md text-center mb-4 text-sm border border-sky-700/50">{info}</p>}
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
@@ -182,7 +201,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30 disabled:bg-slate-600 disabled:cursor-not-allowed"
+                    className="w-full bg-accent hover:bg-sky-500 text-white font-bold py-3 px-4 rounded-md transition-colors shadow-lg hover:shadow-sky-500/30 disabled:bg-slate-600 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0"
                 >
                     {isLoading ? t('auth.processing') : (isLogin ? t('auth.loginButton') : t('auth.signupButton'))}
                 </button>
@@ -190,12 +209,21 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl }) => {
 
             <p className="text-center text-sm text-text-secondary mt-6">
                 {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
-                <button onClick={handleToggleMode} className="font-semibold text-accent hover:text-sky-300 ml-2">
+                <button onClick={handleToggleMode} className="font-semibold text-accent hover:text-sky-300 ml-2 underline decoration-transparent hover:decoration-accent transition-all">
                     {isLogin ? t('auth.signupButton') : t('auth.loginButton')}
                 </button>
             </p>
           </div>
        </div>
+       <style>{`
+         @keyframes fade-in {
+           from { opacity: 0; transform: translateY(10px); }
+           to { opacity: 1; transform: translateY(0); }
+         }
+         .animate-fade-in {
+           animation: fade-in 0.6s ease-out forwards;
+         }
+       `}</style>
     </div>
   );
 };
