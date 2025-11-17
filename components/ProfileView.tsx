@@ -101,24 +101,29 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
 
     const roleColor = user.role === 'admin' ? 'bg-accent/20 text-accent' : 'bg-slate-600 text-slate-300';
     
-    const bgStyle = bgUrl ? {
-        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.5)), url(${bgUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
-    } : undefined;
-
     return (
-        <div className="min-h-full p-6 md:p-8 relative" style={bgStyle}>
+        <div className="min-h-full p-6 md:p-8 relative">
+            {/* Dedicated Fixed Background Layer */}
+            {bgUrl && (
+                <div 
+                className="fixed inset-0 md:left-64 z-0"
+                style={{
+                    backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.5)), url(${bgUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                }}
+                />
+            )}
+            
             {isEditing && (
-                 <div className="absolute top-4 right-4 z-10">
+                 <div className="absolute top-4 right-4 z-20">
                     <label className="bg-secondary/80 hover:bg-secondary text-text-primary p-2 rounded-full cursor-pointer transition-colors backdrop-blur-sm flex items-center justify-center shadow-md border border-slate-600" title={t('characterCard.editBackground')}>
                         <input type="file" className="hidden" accept="image/*" onChange={handleBackgroundChange} />
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
                     </label>
                  </div>
             )}
-            <div className="max-w-5xl mx-auto">
+            <div className="max-w-5xl mx-auto relative z-10">
                 <ViewHeader title={t('profile.profileTitle', { username: user.username })}>
                     {isEditing ? (
                         <div className="flex gap-2">

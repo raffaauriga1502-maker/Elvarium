@@ -166,7 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
           setTimeout(() => setShareStatus('idle'), 3000);
       } catch (clipboardError) {
           console.warn("Clipboard write failed, falling back to prompt:", clipboardError);
-          // Fallback for mobile/permissions issues - allows manual copy
+          // Fallback for mobile/permissions issues or focus loss - allows manual copy
           window.prompt(t('sidebar.copyShareLink'), result.url);
           setShareStatus('idle');
       }
