@@ -140,11 +140,15 @@ export const resolveImageUrl = async (key: string | null | undefined): Promise<s
     if (urlCache.has(key)) return urlCache.get(key)!;
 
     if (key.startsWith('idb://')) {
-        const blob = await idbService.getImage(key);
-        if (blob) {
-            const objectUrl = URL.createObjectURL(blob);
-            urlCache.set(key, objectUrl);
-            return objectUrl;
+        try {
+            const blob = await idbService.getImage(key);
+            if (blob) {
+                const objectUrl = URL.createObjectURL(blob);
+                urlCache.set(key, objectUrl);
+                return objectUrl;
+            }
+        } catch (e) {
+            console.warn(`Failed to resolve image for key ${key}`, e);
         }
     }
     // For backwards compatibility with old base64 strings
@@ -243,18 +247,23 @@ export const getAllArcs = async (): Promise<string[]> => {
 // --- Export / Import / Share ---
 
 const dataUrlToBlob = (dataUrl: string): Blob => {
-    const parts = dataUrl.split(',');
-    if (parts.length < 2) throw new Error("Invalid data URL");
-    const mimeMatch = parts[0].match(/:(.*?);/);
-    if (!mimeMatch || mimeMatch.length < 2) throw new Error("Could not determine mime type");
-    const mimeType = mimeMatch[1];
-    const b64 = atob(parts[1]);
-    let n = b64.length;
-    const u8arr = new Uint8Array(n);
-    while(n--){
-        u8arr[n] = b64.charCodeAt(n);
+    try {
+        const parts = dataUrl.split(',');
+        if (parts.length < 2) throw new Error("Invalid data URL");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        if (!mimeMatch || mimeMatch.length < 2) throw new Error("Could not determine mime type");
+        const mimeType = mimeMatch[1];
+        const b64 = atob(parts[1]);
+        let n = b64.length;
+        const u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = b64.charCodeAt(n);
+        }
+        return new Blob([u8arr], {type: mimeType});
+    } catch (e) {
+        console.error("Error converting DataURL to Blob:", e);
+        throw e;
     }
-    return new Blob([u8arr], {type: mimeType});
 }
 
 export const exportAllData = async (includeImages = true): Promise<object> => {
@@ -314,7 +323,8 @@ export const importAllData = async (data: any): Promise<void> => {
                     const dataUrl = data.indexedDB[key];
                     if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
                         // Convert to Blob immediately
-                        batchImages[key] = dataUrlToBlob(dataUrl);
+                        const blob = dataUrlToBlob(dataUrl);
+                        batchImages[key] = blob;
                     }
                 } catch (e) {
                     console.warn(`Skipping invalid image data for key ${key}`, e);
@@ -414,6 +424,10 @@ async function processInBatches<T, R>(items: T[], batchSize: number, processItem
         const batch = items.slice(i, i + batchSize);
         const batchResults = await Promise.all(batch.map(processItem));
         results.push(...batchResults);
+        // Add delay between batches to be gentle on the API
+        if (i + batchSize < items.length) {
+            await new Promise(r => setTimeout(r, 200));
+        }
     }
     return results;
 }
@@ -433,7 +447,8 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
             textData = await response.text();
         } else if (source === 'dpaste-chunked') {
             const ids = idOrIds.split(',');
-            const chunks = await processInBatches(ids, 5, async (id) => {
+            // Use smaller batch size for fetching to be safe
+            const chunks = await processInBatches(ids, 3, async (id) => {
                  const response = await fetch(`https://dpaste.com/${id}.txt`);
                  if (!response.ok) throw new Error(`Failed to fetch chunk ${id}`);
                  return response.text();
@@ -512,7 +527,7 @@ const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<st
             return await uploadToDpaste(content);
         } catch (e) {
             if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 1000)); // Longer backoff
         }
     }
     throw new Error("Unreachable");
@@ -568,7 +583,8 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     const url = new URL(baseUrl);
     url.search = '';
 
-    const SINGLE_PASTE_LIMIT = 900 * 1024; 
+    // Decreased limit to be safer with dpaste limits (approx 500KB safe zone)
+    const SINGLE_PASTE_LIMIT = 500 * 1024; 
     const MAX_CHUNKS = 200; 
 
     if (sizeInBytes < SINGLE_PASTE_LIMIT) {
@@ -584,7 +600,8 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     if (sizeInBytes < SINGLE_PASTE_LIMIT * MAX_CHUNKS) {
         try {
             const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
-            const ids = await processInBatches(chunks, 5, async (chunk) => {
+            // Reduced concurrency from 5 to 3 to avoid rate limits
+            const ids = await processInBatches(chunks, 3, async (chunk) => {
                 await new Promise(r => setTimeout(r, 100));
                 return await uploadToDpasteWithRetry(chunk);
             });
@@ -601,7 +618,7 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
         url.hash = `#fio=${pasteId}`;
         return { 
             url: url.href, 
-            warning: "Large world file (>180MB). Link valid for ONE download only via file.io." 
+            warning: "Large world file (>100MB). Link valid for ONE download only via file.io." 
         };
     } catch (error: any) {
         console.error("All sharing services failed:", error);

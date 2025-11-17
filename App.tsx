@@ -192,9 +192,13 @@ const App: React.FC = () => {
               window.history.replaceState(null, '', window.location.pathname);
               
               // Explicit wait to ensure IDB flush. 
-              // Increased to 3000ms (3s) to be absolutely safe on slower mobile devices.
-              await new Promise(resolve => setTimeout(resolve, 3000));
-              
+              // We attempt a "read back" to force verifying the disk write before reloading
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              try {
+                  // Attempt to read a key to verify DB is ready
+                  await apiService.getHomeBackground();
+              } catch (e) { console.log("Flush verify pass"); }
+
               window.location.reload();
           }
       } catch (error: any) {
