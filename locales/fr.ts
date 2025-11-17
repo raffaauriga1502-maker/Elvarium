@@ -1,3 +1,4 @@
+
 export const translations = {
   "header": {
     "titleHome": "Accueil",
@@ -84,6 +85,7 @@ export const translations = {
     "backTo": "Retour à {characterType}",
     "noCharactersForArc": "Aucun personnage trouvé pour l'arc \"{arcName}\".",
     "noCharactersYet": "Aucun personnage créé pour le moment. {cta}",
+    "npcSection": "PNJ",
     "adminCta": "Cliquez sur \"Ajouter Personnage\" pour commencer.",
     "viewDetailsFor": "Voir les détails de {characterName}",
     "aria": {
@@ -129,6 +131,8 @@ export const translations = {
     "height": "Taille",
     "weight": "Poids",
     "bloodType": "Groupe Sanguin",
+    "isNpc": "PNJ",
+    "markAsNpc": "Marquer comme PNJ",
     "associatedArcs": "Arcs Associés",
     "arcsPlaceholder": "ex: Le Début, La Guerre, L'Après",
     "arcsHelpText": "Séparez les noms d'arcs par une virgule.",
@@ -161,7 +165,8 @@ export const translations = {
       "unknown": "Inconnu"
     },
     "placeholders": {
-      "details": "Entrez les détails ici..."
+      "details": "Entrez les détails ici...",
+      "alias": "ex: L'Ombre"
     },
     "noInformation": "Aucune information fournie.",
     "newPortraitName": "Nouveau Portrait",

@@ -65,6 +65,12 @@ const imageFileToBlob = (file: File, maxWidth: number = 800, maxHeight: number =
             const img = new Image();
             img.src = event.target.result as string;
             img.onload = () => {
+                // If the image is a PNG and already within bounds, return the original file to preserve transparency perfectly.
+                if (file.type === 'image/png' && img.width <= maxWidth && img.height <= maxHeight) {
+                    resolve(file);
+                    return;
+                }
+
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
 
@@ -85,24 +91,37 @@ const imageFileToBlob = (file: File, maxWidth: number = 800, maxHeight: number =
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return reject(new Error('Could not get canvas context'));
                 
+                ctx.clearRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
-
-                // Check file type to preserve transparency for PNGs
-                const outputMimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
                 
-                canvas.toBlob((blob) => {
-                    if (blob) {
-                        resolve(blob);
-                    } else {
-                        reject(new Error('Canvas to Blob conversion failed'));
-                    }
-                }, outputMimeType, quality);
+                // For file types that support transparency, convert to PNG. Otherwise, use JPEG.
+                const transparentMimeTypes = ['image/png', 'image/gif', 'image/webp'];
+                const outputMimeType = transparentMimeTypes.includes(file.type) ? 'image/png' : 'image/jpeg';
+                
+                if (outputMimeType === 'image/png') {
+                     canvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Canvas to Blob conversion for PNG failed'));
+                        }
+                    }, 'image/png');
+                } else { // It's a JPEG
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Canvas to Blob conversion failed'));
+                        }
+                    }, 'image/jpeg', quality);
+                }
             };
             img.onerror = (error) => reject(error);
         };
         reader.onerror = (error) => reject(error);
     });
 };
+
 
 export const processAndStoreImage = async (file: File, options: { maxWidth: number; maxHeight: number; quality?: number }): Promise<string> => {
     const blob = await imageFileToBlob(file, options.maxWidth, options.maxHeight, options.quality);

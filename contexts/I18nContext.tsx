@@ -1,5 +1,9 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useMemo } from 'react';
-import { translations as enTranslations } from '../locales/en';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo } from 'react';
+import { translations as en } from '../locales/en';
+import { translations as es } from '../locales/es';
+import { translations as fr } from '../locales/fr';
+import { translations as de } from '../locales/de';
+import { translations as id } from '../locales/id';
 
 export const supportedLanguages = {
     en: { flag: '🇬🇧' },
@@ -10,6 +14,14 @@ export const supportedLanguages = {
 };
 
 export type LanguageCode = keyof typeof supportedLanguages;
+
+const TRANSLATIONS: Record<LanguageCode, any> = {
+    en,
+    es,
+    fr,
+    de,
+    id,
+};
 
 interface I18nContextType {
     lang: LanguageCode;
@@ -33,27 +45,6 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     });
 
-    const [translations, setTranslations] = useState<Record<string, any>>(enTranslations);
-
-    useEffect(() => {
-        const loadTranslations = async () => {
-            if (lang === 'en') {
-                setTranslations(enTranslations);
-                return;
-            }
-            try {
-                // Use dynamic import to lazy-load the language module
-                const module = await import(`../locales/${lang}.ts`);
-                setTranslations(module.translations);
-            } catch (e) {
-                console.warn(`Failed to load translations for ${lang}. Falling back to English.`, e);
-                setTranslations(enTranslations);
-            }
-        };
-
-        loadTranslations();
-    }, [lang]);
-
     const setLang = useCallback((newLang: LanguageCode) => {
         try {
             localStorage.setItem('elvarium_language', newLang);
@@ -64,9 +55,10 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     const t = useCallback((key: string, replacements?: Record<string, string | number>): string => {
-        // Fallback translations are now built-in via the 'en' import
-        const fallbackTranslations = enTranslations;
-        let translatedString = getNestedValue(translations, key) || getNestedValue(fallbackTranslations, key) || key;
+        const currentTranslations = TRANSLATIONS[lang] || TRANSLATIONS['en'];
+        const fallbackTranslations = TRANSLATIONS['en'];
+        
+        let translatedString = getNestedValue(currentTranslations, key) || getNestedValue(fallbackTranslations, key) || key;
 
         if (replacements && typeof translatedString === 'string') {
             Object.keys(replacements).forEach(placeholder => {
@@ -75,11 +67,10 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         return translatedString;
-    }, [translations]);
+    }, [lang]);
     
     const contextValue = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
 
-    // No need to check for translations loading anymore, as we have a default state
     return (
         <I18nContext.Provider value={contextValue}>
             {children}

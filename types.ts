@@ -37,12 +37,14 @@ export interface User {
 export interface Character {
   id:string;
   name: string;
+  alias: string;
   status: string;
   birthplace: string;
   age: string;
   height: string;
   weight: string;
   bloodType: string;
+  isNpc?: boolean;
 
   about: string;
   biography: string;

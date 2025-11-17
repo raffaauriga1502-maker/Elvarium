@@ -161,7 +161,8 @@
       "unknown": "Tidak diketahui"
     },
     "placeholders": {
-      "details": "Masukkan detail di sini..."
+      "details": "Masukkan detail di sini...",
+      "alias": "cth., Sang Bayangan"
     },
     "noInformation": "Tidak ada informasi yang diberikan.",
     "newPortraitName": "Potret Baru",

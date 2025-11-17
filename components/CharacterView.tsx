@@ -111,12 +111,14 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
     const newCharacter: Character = {
         id: crypto.randomUUID(),
         name: t('characters.newCharacter.name'),
+        alias: '',
         status: t('characterCard.statusOptions.alive'),
         birthplace: t('characters.newCharacter.unknown'),
         age: t('characters.newCharacter.unknown'),
         height: t('characters.newCharacter.unknown'),
         weight: t('characters.newCharacter.unknown'),
         bloodType: t('characters.newCharacter.unknown'),
+        isNpc: false,
         about: t('characters.newCharacter.about'),
         biography: t('characters.newCharacter.biography'),
         personality: t('characters.newCharacter.personality'),
@@ -182,19 +184,79 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
         }
         return <div className="col-span-full text-center text-text-secondary py-10">{message}</div>
     }
-    return filteredCharacters.map((character) => {
-      const originalIndex = characters.findIndex(c => c.id === character.id);
-      return (
-        <CharacterAvatar 
-          key={character.id} 
-          character={character} 
-          onClick={() => {
-            setSelectedCharacterIndex(originalIndex);
-            setIsNewlyAddedSelected(false);
-          }}
-        />
-      )
-    });
+
+    // Special layout for 'Allies' tab to separate NPCs
+    if (characterType === 'Allies') {
+        const regulars = filteredCharacters.filter(c => !c.isNpc);
+        const npcs = filteredCharacters.filter(c => c.isNpc);
+
+        return (
+             <div className="col-span-full space-y-8">
+                {regulars.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-8 justify-items-center">
+                        {regulars.map((character) => {
+                             const originalIndex = characters.findIndex(c => c.id === character.id);
+                             return (
+                                 <CharacterAvatar 
+                                    key={character.id} 
+                                    character={character} 
+                                    onClick={() => {
+                                        setSelectedCharacterIndex(originalIndex);
+                                        setIsNewlyAddedSelected(false);
+                                    }}
+                                />
+                             );
+                        })}
+                    </div>
+                )}
+                
+                {npcs.length > 0 && (
+                    <>
+                         {regulars.length > 0 && <div className="border-t border-secondary/50 my-4 w-full"></div>}
+                         <h3 className="text-2xl text-accent font-display text-center mb-4 flex items-center justify-center gap-4">
+                            <span className="h-px w-12 bg-accent/50 inline-block"></span>
+                            {t('characters.npcSection')}
+                            <span className="h-px w-12 bg-accent/50 inline-block"></span>
+                         </h3>
+                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-8 justify-items-center">
+                            {npcs.map((character) => {
+                                const originalIndex = characters.findIndex(c => c.id === character.id);
+                                return (
+                                    <CharacterAvatar 
+                                        key={character.id} 
+                                        character={character} 
+                                        onClick={() => {
+                                            setSelectedCharacterIndex(originalIndex);
+                                            setIsNewlyAddedSelected(false);
+                                        }}
+                                    />
+                                );
+                            })}
+                         </div>
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    // Standard grid for other character types
+    return (
+        <div className="col-span-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-8 justify-items-center">
+            {filteredCharacters.map((character) => {
+                const originalIndex = characters.findIndex(c => c.id === character.id);
+                return (
+                    <CharacterAvatar 
+                    key={character.id} 
+                    character={character} 
+                    onClick={() => {
+                        setSelectedCharacterIndex(originalIndex);
+                        setIsNewlyAddedSelected(false);
+                    }}
+                    />
+                )
+            })}
+        </div>
+    );
   };
 
   const renderDetailView = () => {
@@ -265,7 +327,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
         )}
       </ViewHeader>
       {selectedCharacter ? renderDetailView() : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-6 gap-y-8 mt-6 justify-items-center">
+        <div className="mt-6">
             {renderGallery()}
         </div>
       )}

@@ -178,6 +178,11 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         setEditedCharacter(prev => ({ ...prev, [name]: value }));
     }
   };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const { name, checked } = e.target;
+      setEditedCharacter(prev => ({ ...prev, [name]: checked }));
+  };
   
   const handleStatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
@@ -454,10 +459,47 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             
             {/* --- PORTRAIT & OUTFIT SELECTORS --- */}
              <div className="flex flex-col items-center gap-3">
-                 <div className="text-3xl font-bold text-white break-words text-center font-display" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                    {isEditing ? (
-                        <input type="text" name="name" value={editedCharacter.name} onChange={handleInputChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center text-3xl font-display" />
-                    ) : (<h3>{editedCharacter.name}</h3>)}
+                 <div className="w-full text-center">
+                    <div className="text-3xl font-bold text-white break-words font-display flex items-center justify-center gap-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                        {isEditing ? (
+                            <input type="text" name="name" value={editedCharacter.name} onChange={handleInputChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center text-3xl font-display" />
+                        ) : (
+                            <>
+                                <h3>{editedCharacter.name}</h3>
+                                {editedCharacter.isNpc && (
+                                    <span className="bg-gray-700/80 text-white text-xs px-2 py-1 rounded border border-gray-500 font-sans tracking-wide align-middle" title={t('characterCard.isNpc')}>
+                                        {t('characterCard.isNpc')}
+                                    </span>
+                                )}
+                            </>
+                        )}
+                    </div>
+                    <div className="mt-1 min-h-8"> {/* Fixed height to prevent layout shift when editing */}
+                        {isEditing ? (
+                            <div className="space-y-2">
+                                <input 
+                                    type="text" 
+                                    name="alias" 
+                                    value={editedCharacter.alias || ''} 
+                                    onChange={handleInputChange} 
+                                    placeholder={t('characterCard.placeholders.alias')}
+                                    className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-text-primary focus:ring-accent focus:border-accent transition text-center text-lg placeholder:text-slate-500" 
+                                />
+                                <label className="flex items-center justify-center gap-2 text-sm text-text-secondary cursor-pointer bg-secondary/40 p-1 rounded hover:bg-secondary/60 transition">
+                                    <input 
+                                        type="checkbox" 
+                                        name="isNpc" 
+                                        checked={!!editedCharacter.isNpc} 
+                                        onChange={handleCheckboxChange}
+                                        className="rounded border-gray-500 text-accent focus:ring-accent"
+                                    />
+                                    {t('characterCard.markAsNpc')}
+                                </label>
+                            </div>
+                        ) : (
+                            editedCharacter.alias && <p className="text-lg text-accent/90 font-display tracking-wider">"{editedCharacter.alias}"</p>
+                        )}
+                    </div>
                 </div>
                  <div className="w-full p-3 bg-primary/60 rounded-lg space-y-2">
                     <h4 className="text-center font-semibold text-accent/80 text-sm uppercase tracking-wider">{t('characterCard.portrait')}</h4>

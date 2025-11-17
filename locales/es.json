@@ -161,7 +161,8 @@
       "unknown": "Desconocido"
     },
     "placeholders": {
-      "details": "Introduce los detalles aquí..."
+      "details": "Introduce los detalles aquí...",
+      "alias": "ej., La Sombra"
     },
     "noInformation": "No se ha proporcionado información.",
     "newPortraitName": "Nuevo Retrato",

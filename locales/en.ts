@@ -1,3 +1,4 @@
+
 export const translations = {
   "header": {
     "titleHome": "Home",
@@ -84,6 +85,7 @@ export const translations = {
     "backTo": "Back to {characterType}",
     "noCharactersForArc": "No characters found for the arc \"{arcName}\".",
     "noCharactersYet": "No characters created yet. {cta}",
+    "npcSection": "NPCs",
     "adminCta": "Click \"Add Character\" to begin.",
     "viewDetailsFor": "View details for {characterName}",
     "aria": {
@@ -129,6 +131,8 @@ export const translations = {
     "height": "Height",
     "weight": "Weight",
     "bloodType": "Blood Type",
+    "isNpc": "NPC",
+    "markAsNpc": "Mark as NPC",
     "associatedArcs": "Associated Arcs",
     "arcsPlaceholder": "e.g., The Beginning, The War, Aftermath",
     "arcsHelpText": "Separate arc names with a comma.",
@@ -161,7 +165,8 @@ export const translations = {
       "unknown": "Unknown"
     },
     "placeholders": {
-      "details": "Enter details here..."
+      "details": "Enter details here...",
+      "alias": "e.g., The Shadow"
     },
     "noInformation": "No information provided.",
     "newPortraitName": "New Portrait",

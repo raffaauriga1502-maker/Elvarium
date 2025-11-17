@@ -1,3 +1,4 @@
+
 export const translations = {
   "header": {
     "titleHome": "Startseite",
@@ -84,6 +85,7 @@ export const translations = {
     "backTo": "Zurück zu {characterType}",
     "noCharactersForArc": "Keine Charaktere für den Handlungsbogen \"{arcName}\" gefunden.",
     "noCharactersYet": "Noch keine Charaktere erstellt. {cta}",
+    "npcSection": "NPCs",
     "adminCta": "Klicke auf \"Charakter hinzufügen\", um zu beginnen.",
     "viewDetailsFor": "Details für {characterName} anzeigen",
     "aria": {
@@ -129,6 +131,8 @@ export const translations = {
     "height": "Größe",
     "weight": "Gewicht",
     "bloodType": "Blutgruppe",
+    "isNpc": "NPC",
+    "markAsNpc": "Als NPC markieren",
     "associatedArcs": "Zugehörige Handlungsbögen",
     "arcsPlaceholder": "z.B. Der Anfang, Der Krieg, Danach",
     "arcsHelpText": "Trenne die Namen der Handlungsbögen mit einem Komma.",
@@ -161,7 +165,8 @@ export const translations = {
       "unknown": "Unbekannt"
     },
     "placeholders": {
-      "details": "Details hier eingeben..."
+      "details": "Details hier eingeben...",
+      "alias": "z.B., Der Schatten"
     },
     "noInformation": "Keine Informationen angegeben.",
     "newPortraitName": "Neues Porträt",

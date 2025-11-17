@@ -161,7 +161,8 @@
       "unknown": "Unknown"
     },
     "placeholders": {
-      "details": "Enter details here..."
+      "details": "Enter details here...",
+      "alias": "e.g., The Shadow"
     },
     "noInformation": "No information provided.",
     "newPortraitName": "New Portrait",

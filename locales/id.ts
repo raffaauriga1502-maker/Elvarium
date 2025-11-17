@@ -1,3 +1,4 @@
+
 export const translations = {
   "header": {
     "titleHome": "Beranda",
@@ -84,6 +85,7 @@ export const translations = {
     "backTo": "Kembali ke {characterType}",
     "noCharactersForArc": "Tidak ada karakter yang ditemukan untuk arc \"{arcName}\".",
     "noCharactersYet": "Belum ada karakter yang dibuat. {cta}",
+    "npcSection": "NPC",
     "adminCta": "Klik \"Tambah Karakter\" untuk memulai.",
     "viewDetailsFor": "Lihat detail untuk {characterName}",
     "aria": {
@@ -129,6 +131,8 @@ export const translations = {
     "height": "Tinggi",
     "weight": "Berat",
     "bloodType": "Golongan Darah",
+    "isNpc": "NPC",
+    "markAsNpc": "Tandai sebagai NPC",
     "associatedArcs": "Arc Terkait",
     "arcsPlaceholder": "mis., Awal, Perang, Akibat",
     "arcsHelpText": "Pisahkan nama arc dengan koma.",
@@ -161,7 +165,8 @@ export const translations = {
       "unknown": "Tidak diketahui"
     },
     "placeholders": {
-      "details": "Masukkan detail di sini..."
+      "details": "Masukkan detail di sini...",
+      "alias": "cth., Sang Bayangan"
     },
     "noInformation": "Tidak ada informasi yang diberikan.",
     "newPortraitName": "Potret Baru",

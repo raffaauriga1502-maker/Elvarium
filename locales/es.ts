@@ -1,3 +1,4 @@
+
 export const translations = {
   "header": {
     "titleHome": "Inicio",
@@ -84,6 +85,7 @@ export const translations = {
     "backTo": "Volver a {characterType}",
     "noCharactersForArc": "No se encontraron personajes para el arco \"{arcName}\".",
     "noCharactersYet": "Aún no se han creado personajes. {cta}",
+    "npcSection": "NPCs",
     "adminCta": "Haz clic en \"Añadir Personaje\" para comenzar.",
     "viewDetailsFor": "Ver detalles de {characterName}",
     "aria": {
@@ -129,6 +131,8 @@ export const translations = {
     "height": "Altura",
     "weight": "Peso",
     "bloodType": "Tipo de Sangre",
+    "isNpc": "NPC",
+    "markAsNpc": "Marcar como NPC",
     "associatedArcs": "Arcos Asociados",
     "arcsPlaceholder": "ej., El Comienzo, La Guerra, Consecuencias",
     "arcsHelpText": "Separa los nombres de los arcos con una coma.",
@@ -161,7 +165,8 @@ export const translations = {
       "unknown": "Desconocido"
     },
     "placeholders": {
-      "details": "Introduce los detalles aquí..."
+      "details": "Introduce los detalles aquí...",
+      "alias": "ej., La Sombra"
     },
     "noInformation": "No se ha proporcionado información.",
     "newPortraitName": "Nuevo Retrato",

@@ -161,7 +161,8 @@
       "unknown": "Unbekannt"
     },
     "placeholders": {
-      "details": "Details hier eingeben..."
+      "details": "Details hier eingeben...",
+      "alias": "z.B., Der Schatten"
     },
     "noInformation": "Keine Informationen angegeben.",
     "newPortraitName": "Neues Porträt",

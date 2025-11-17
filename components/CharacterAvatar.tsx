@@ -53,7 +53,7 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
   return (
     <button
       onClick={onClick}
-      className="group transition-transform transform hover:scale-105"
+      className="group transition-transform transform hover:scale-105 relative"
       aria-label={t('characters.viewDetailsFor', { characterName: character.name })}
     >
       <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden border-4 border-secondary group-hover:border-accent transition-colors duration-300 shadow-lg">
@@ -79,6 +79,11 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
             <h3 className="font-semibold text-white text-sm md:text-base text-center truncate">{character.name}</h3>
         </div>
       </div>
+      {character.isNpc && (
+          <div className="absolute top-2 right-2 bg-gray-800/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-gray-600 shadow-sm z-10 pointer-events-none">
+            {t('characterCard.isNpc')}
+          </div>
+      )}
     </button>
   );
 };

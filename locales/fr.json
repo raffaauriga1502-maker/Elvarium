@@ -161,7 +161,8 @@
       "unknown": "Inconnu"
     },
     "placeholders": {
-      "details": "Entrez les détails ici..."
+      "details": "Entrez les détails ici...",
+      "alias": "ex: L'Ombre"
     },
     "noInformation": "Aucune information fournie.",
     "newPortraitName": "Nouveau Portrait",
