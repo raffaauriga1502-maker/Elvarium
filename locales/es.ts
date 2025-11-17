@@ -1,4 +1,5 @@
 
+
 export const translations = {
   "header": {
     "titleHome": "Inicio",
@@ -91,6 +92,10 @@ export const translations = {
     "aria": {
       "filterByArc": "Filtrar personajes por arco"
     },
+    "viewMode": {
+      "grid": "Vista Cuadrícula",
+      "graph": "Mapa de Relaciones"
+    },
     "newCharacter": {
       "name": "Nuevo Personaje",
       "unknown": "Desconocido",
@@ -142,6 +147,11 @@ export const translations = {
     "appearance": "Apariencia",
     "powers": "Poderes y Habilidades",
     "relationships": "Relaciones",
+    "relationshipNotes": "Notas de Relación",
+    "addRelationship": "Añadir Relación",
+    "targetCharacter": "Personaje Objetivo",
+    "description": "Descripción",
+    "relationPlaceholder": "ej. Rival, Hermano, Enemigo",
     "stats": "Estadísticas",
     "radar": "Radar",
     "bar": "Barras",

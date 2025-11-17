@@ -1,4 +1,5 @@
 
+
 export const translations = {
   "header": {
     "titleHome": "Accueil",
@@ -91,6 +92,10 @@ export const translations = {
     "aria": {
       "filterByArc": "Filtrer les personnages par arc"
     },
+    "viewMode": {
+      "grid": "Vue Grille",
+      "graph": "Carte des Relations"
+    },
     "newCharacter": {
       "name": "Nouveau Personnage",
       "unknown": "Inconnu",
@@ -142,6 +147,11 @@ export const translations = {
     "appearance": "Apparence",
     "powers": "Pouvoirs & Capacités",
     "relationships": "Relations",
+    "relationshipNotes": "Notes de Relation",
+    "addRelationship": "Ajouter Relation",
+    "targetCharacter": "Personnage Cible",
+    "description": "Description",
+    "relationPlaceholder": "ex. Rival, Frère, Ennemi",
     "stats": "Statistiques",
     "radar": "Radar",
     "bar": "Barres",

@@ -1,4 +1,5 @@
 
+
 export const translations = {
   "header": {
     "titleHome": "Beranda",
@@ -91,6 +92,10 @@ export const translations = {
     "aria": {
       "filterByArc": "Saring karakter berdasarkan arc"
     },
+    "viewMode": {
+      "grid": "Tampilan Grid",
+      "graph": "Peta Hubungan"
+    },
     "newCharacter": {
       "name": "Karakter Baru",
       "unknown": "Tidak diketahui",
@@ -142,6 +147,11 @@ export const translations = {
     "appearance": "Penampilan",
     "powers": "Kekuatan & Kemampuan",
     "relationships": "Hubungan",
+    "relationshipNotes": "Catatan Hubungan",
+    "addRelationship": "Tambah Hubungan",
+    "targetCharacter": "Karakter Target",
+    "description": "Deskripsi",
+    "relationPlaceholder": "cth. Rival, Saudara, Musuh",
     "stats": "Statistik",
     "radar": "Radar",
     "bar": "Batang",

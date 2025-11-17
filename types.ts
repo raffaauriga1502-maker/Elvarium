@@ -26,11 +26,19 @@ export interface GalleryImage {
   imageUrl: string;
 }
 
+export interface Relationship {
+  id: string;
+  targetId: string | null; // null if it's a custom name not linked to a character card
+  targetName: string;
+  description: string;
+}
+
 export interface User {
   username: string;
   password: string; // In a real app, this would be a hash
   role: 'admin' | 'viewer';
   avatarUrl?: string;
+  profileBackgroundUrl?: string;
   bio?: string;
 }
 
@@ -51,7 +59,8 @@ export interface Character {
   personality: string;
   appearanceDescription: string;
   powers: string;
-  relationships: string;
+  relationships: string; // Legacy / Notes
+  relationshipLinks?: Relationship[]; // Structured links
   trivia: string;
   
   portraits: Portrait[];

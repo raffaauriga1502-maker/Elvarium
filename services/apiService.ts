@@ -34,6 +34,8 @@ const APP_KEYS = [
     'elvarium_auth_banner',
     'elvarium_synopsis',
     'elvarium_synopsis_banner',
+    'elvarium_home_bg',
+    'elvarium_characters_bg',
     'elvarium_characters_Main_Protagonist',
     'elvarium_characters_Allies',
     'elvarium_characters_Main_Antagonist',
@@ -155,12 +157,20 @@ export const resolveImageUrl = async (key: string | null | undefined): Promise<s
 // --- Customization ---
 const LOGO_KEY = 'elvarium_logo';
 const AUTH_BANNER_KEY = 'elvarium_auth_banner';
+const HOME_BG_KEY = 'elvarium_home_bg';
+const CHARACTERS_BG_KEY = 'elvarium_characters_bg';
 
 export const getLogo = (): Promise<string | null> => getItem<string>(LOGO_KEY);
 export const saveLogo = (key: string): Promise<void> => setItem(LOGO_KEY, key);
 
 export const getAuthBanner = (): Promise<string | null> => getItem<string>(AUTH_BANNER_KEY);
 export const saveAuthBanner = (key: string): Promise<void> => setItem(AUTH_BANNER_KEY, key);
+
+export const getHomeBackground = (): Promise<string | null> => getItem<string>(HOME_BG_KEY);
+export const saveHomeBackground = (key: string): Promise<void> => setItem(HOME_BG_KEY, key);
+
+export const getCharactersBackground = (): Promise<string | null> => getItem<string>(CHARACTERS_BG_KEY);
+export const saveCharactersBackground = (key: string): Promise<void> => setItem(CHARACTERS_BG_KEY, key);
 
 // --- Synopsis ---
 const SYNOPSIS_KEY = 'elvarium_synopsis';
@@ -185,6 +195,18 @@ export const saveCharacters = (characterType: CharacterType, characters: Charact
 
 export const removeCharacters = (characterType: CharacterType): Promise<void> => {
     return removeItem(getCharacterKey(characterType));
+};
+
+export const getAllCharactersBasicInfo = async (): Promise<{id: string, name: string, type: CharacterType}[]> => {
+    const types: CharacterType[] = ['Main Protagonist', 'Allies', 'Main Antagonist', 'Enemies'];
+    let all: {id: string, name: string, type: CharacterType}[] = [];
+    for (const t of types) {
+        const chars = await getCharacters(t);
+        if (chars) {
+            all = [...all, ...chars.map(c => ({id: c.id, name: c.name, type: t}))];
+        }
+    }
+    return all.sort((a, b) => a.name.localeCompare(b.name));
 };
 
 

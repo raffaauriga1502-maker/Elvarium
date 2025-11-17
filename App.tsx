@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './components/Header';
@@ -300,8 +301,8 @@ const App: React.FC = () => {
             onLogout={handleLogout}
             isGuestSession={isGuestSession}
           />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-primary p-4 md:p-8">
-            <div className="max-w-7xl mx-auto" key={appDataVersion}>
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-primary relative">
+            <div className="min-h-full" key={appDataVersion}>
               {renderContent()}
             </div>
           </main>

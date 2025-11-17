@@ -1,4 +1,5 @@
 
+
 export const translations = {
   "header": {
     "titleHome": "Home",
@@ -91,6 +92,10 @@ export const translations = {
     "aria": {
       "filterByArc": "Filter characters by arc"
     },
+    "viewMode": {
+      "grid": "Grid View",
+      "graph": "Relationship Map"
+    },
     "newCharacter": {
       "name": "New Character",
       "unknown": "Unknown",
@@ -142,6 +147,11 @@ export const translations = {
     "appearance": "Appearance",
     "powers": "Powers & Abilities",
     "relationships": "Relationships",
+    "relationshipNotes": "Relationship Notes",
+    "addRelationship": "Add Relationship",
+    "targetCharacter": "Target Character",
+    "description": "Description",
+    "relationPlaceholder": "e.g. Rival, Sibling, Enemy",
     "stats": "Stats",
     "radar": "Radar",
     "bar": "Bar",
@@ -166,7 +176,7 @@ export const translations = {
     },
     "placeholders": {
       "details": "Enter details here...",
-      "alias": "e.g., The Shadow"
+      "alias": "e.g., The Shadow, Dark Knight"
     },
     "noInformation": "No information provided.",
     "newPortraitName": "New Portrait",

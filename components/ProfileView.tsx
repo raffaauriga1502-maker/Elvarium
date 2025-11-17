@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import ViewHeader from './ViewHeader';
@@ -17,6 +18,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedUser, setEditedUser] = useState<User>(user);
     const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
+    const [bgUrl, setBgUrl] = useState<string | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const { t } = useI18n();
 
@@ -33,8 +35,15 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
         } else {
             setResolvedAvatarUrl(null);
         }
+        if (editedUser.profileBackgroundUrl) {
+            apiService.resolveImageUrl(editedUser.profileBackgroundUrl).then(url => {
+                 if (!isCancelled) setBgUrl(url);
+            });
+        } else {
+            setBgUrl(null);
+        }
         return () => { isCancelled = true; };
-    }, [editedUser.avatarUrl]);
+    }, [editedUser.avatarUrl, editedUser.profileBackgroundUrl]);
 
     const handleAvatarClick = () => {
         if (isEditing) {
@@ -51,6 +60,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
             } catch (error) {
                 console.error("Error processing avatar image:", error);
                 alert(t('profile.errors.avatarProcessing'));
+            }
+        }
+    };
+
+    const handleBackgroundChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            try {
+                const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.8 });
+                setEditedUser(prev => ({ ...prev, profileBackgroundUrl: imageKey }));
+            } catch (error) {
+                console.error("Error processing background image:", error);
             }
         }
     };
@@ -79,82 +100,99 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
     };
 
     const roleColor = user.role === 'admin' ? 'bg-accent/20 text-accent' : 'bg-slate-600 text-slate-300';
+    
+    const bgStyle = bgUrl ? {
+        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.5)), url(${bgUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+    } : undefined;
 
     return (
-        <div className="bg-crystalline rounded-xl shadow-lg p-6 md:p-8">
-            <ViewHeader title={t('profile.profileTitle', { username: user.username })}>
-                {isEditing ? (
-                    <div className="flex gap-2">
-                        <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors">
-                            {t('profile.save')}
+        <div className="bg-crystalline min-h-full p-6 md:p-8 relative" style={bgStyle}>
+            {isEditing && (
+                 <div className="absolute top-4 right-4 z-10">
+                    <label className="bg-secondary/80 hover:bg-secondary text-text-primary p-2 rounded-full cursor-pointer transition-colors backdrop-blur-sm flex items-center justify-center shadow-md border border-slate-600" title={t('characterCard.editBackground')}>
+                        <input type="file" className="hidden" accept="image/*" onChange={handleBackgroundChange} />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" /></svg>
+                    </label>
+                 </div>
+            )}
+            <div className="max-w-5xl mx-auto">
+                <ViewHeader title={t('profile.profileTitle', { username: user.username })}>
+                    {isEditing ? (
+                        <div className="flex gap-2">
+                            <button onClick={handleSave} className="bg-accent hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-md transition-colors">
+                                {t('profile.save')}
+                            </button>
+                            <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
+                                {t('profile.cancel')}
+                            </button>
+                        </div>
+                    ) : (
+                        <button onClick={() => setIsEditing(true)} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
+                            {t('profile.editProfile')}
                         </button>
-                        <button onClick={handleCancel} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
-                            {t('profile.cancel')}
-                        </button>
-                    </div>
-                ) : (
-                    <button onClick={() => setIsEditing(true)} className="bg-secondary hover:bg-slate-600 text-text-primary font-bold py-2 px-4 rounded-md transition-colors">
-                        {t('profile.editProfile')}
-                    </button>
-                )}
-            </ViewHeader>
+                    )}
+                </ViewHeader>
 
-            <div className="mt-8 flex flex-col md:flex-row items-center md:items-start gap-8">
-                <div className="flex-shrink-0 text-center">
-                    <input 
-                        type="file"
-                        ref={avatarInputRef}
-                        onChange={handleAvatarChange}
-                        accept="image/*"
-                        className="hidden"
-                    />
-                    <div 
-                        className={`relative w-40 h-40 rounded-full bg-secondary border-4 border-slate-600 overflow-hidden group ${isEditing ? 'cursor-pointer hover:border-accent' : ''} transition-colors`}
-                        onClick={handleAvatarClick}
-                        aria-label={isEditing ? t('profile.changeAvatar') : t('profile.userAvatar')}
-                    >
-                        {resolvedAvatarUrl ? (
-                            <img src={resolvedAvatarUrl} alt={t('profile.userAvatar')} className="w-full h-full object-cover" />
-                        ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-slate-500 p-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
-                        )}
-                        {isEditing && (
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                                    <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+                <div className="mt-8 flex flex-col md:flex-row items-center md:items-start gap-8">
+                    <div className="flex-shrink-0 text-center">
+                        <input 
+                            type="file"
+                            ref={avatarInputRef}
+                            onChange={handleAvatarChange}
+                            accept="image/*"
+                            className="hidden"
+                        />
+                        <div 
+                            className={`relative w-40 h-40 rounded-full bg-secondary border-4 border-slate-600 overflow-hidden group ${isEditing ? 'cursor-pointer hover:border-accent' : ''} transition-colors`}
+                            onClick={handleAvatarClick}
+                            aria-label={isEditing ? t('profile.changeAvatar') : t('profile.userAvatar')}
+                        >
+                            {resolvedAvatarUrl ? (
+                                <img src={resolvedAvatarUrl} alt={t('profile.userAvatar')} className="w-full h-full object-cover" />
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full text-slate-500 p-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                                 </svg>
+                            )}
+                            {isEditing && (
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white opacity-0 group-hover:opacity-100" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                                        <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+                        <span className={`mt-4 inline-block px-3 py-1 text-sm font-semibold rounded-full ${roleColor}`}>
+                            {user.role}
+                        </span>
+                    </div>
+
+                    <div className="w-full">
+                        <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">
+                            {t('profile.bio')}
+                        </h3>
+                        {isEditing ? (
+                            <textarea
+                                value={editedUser.bio || ''}
+                                onChange={handleBioChange}
+                                rows={8}
+                                className="w-full bg-secondary text-text-primary p-4 rounded-md border border-slate-600 focus:ring-accent focus:border-accent transition"
+                                placeholder={t('profile.bioPlaceholder')}
+                            />
+                        ) : (
+                            <div className="prose prose-invert max-w-none prose-p:text-text-primary">
+                                {user.bio ? (
+                                    user.bio.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)
+                                ) : (
+                                    <p className="text-text-secondary italic">{t('profile.noBio')}</p>
+                                )}
                             </div>
                         )}
                     </div>
-                     <span className={`mt-4 inline-block px-3 py-1 text-sm font-semibold rounded-full ${roleColor}`}>
-                        {user.role}
-                    </span>
-                </div>
-
-                <div className="w-full">
-                    <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">
-                        {t('profile.bio')}
-                    </h3>
-                    {isEditing ? (
-                        <textarea
-                            value={editedUser.bio || ''}
-                            onChange={handleBioChange}
-                            rows={8}
-                            className="w-full bg-secondary text-text-primary p-4 rounded-md border border-slate-600 focus:ring-accent focus:border-accent transition"
-                            placeholder={t('profile.bioPlaceholder')}
-                        />
-                    ) : (
-                        <div className="prose prose-invert max-w-none prose-p:text-text-primary">
-                            {user.bio ? (
-                                user.bio.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>)
-                            ) : (
-                                <p className="text-text-secondary italic">{t('profile.noBio')}</p>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

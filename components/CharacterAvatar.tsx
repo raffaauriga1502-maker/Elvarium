@@ -50,13 +50,21 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
 
   if (!character) return null;
 
+  const isNpc = !!character.isNpc;
+
   return (
     <button
       onClick={onClick}
       className="group transition-transform transform hover:scale-105 relative"
       aria-label={t('characters.viewDetailsFor', { characterName: character.name })}
     >
-      <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden border-4 border-secondary group-hover:border-accent transition-colors duration-300 shadow-lg">
+      <div 
+        className={`relative w-32 h-32 md:w-40 md:h-40 rounded-xl overflow-hidden border-4 transition-all duration-300 shadow-lg
+          ${isNpc 
+            ? 'border-slate-600/70 hover:border-slate-400 grayscale-[0.3] hover:grayscale-0' 
+            : 'border-secondary group-hover:border-accent'
+          }`}
+      >
         {resolvedAvatarUrl ? (
           <img src={resolvedAvatarUrl} alt={character.name} className="w-full h-full object-cover" />
         ) : (
@@ -76,11 +84,13 @@ const CharacterAvatar: React.FC<CharacterAvatarProps> = ({ character, isLoading 
           </div>
         )}
         <div className="absolute bottom-0 left-0 w-full p-1.5 md:p-2 bg-black/60 backdrop-blur-sm">
-            <h3 className="font-semibold text-white text-sm md:text-base text-center truncate">{character.name}</h3>
+            <h3 className={`font-semibold text-sm md:text-base text-center truncate ${isNpc ? 'text-slate-300' : 'text-white'}`}>
+              {character.name}
+            </h3>
         </div>
       </div>
-      {character.isNpc && (
-          <div className="absolute top-2 right-2 bg-gray-800/90 text-white text-[10px] font-bold px-1.5 py-0.5 rounded border border-gray-600 shadow-sm z-10 pointer-events-none">
+      {isNpc && (
+          <div className="absolute top-2 right-2 bg-slate-700 text-slate-200 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-500 shadow-sm z-10 pointer-events-none">
             {t('characterCard.isNpc')}
           </div>
       )}

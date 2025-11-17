@@ -1,5 +1,6 @@
+
 import React, { useRef, useState, useEffect } from 'react';
-import { Character, Portrait, Outfit, GalleryImage, User } from '../types';
+import { Character, Portrait, Outfit, GalleryImage, User, Relationship } from '../types';
 import RadarChart from './RadarChart';
 import BarChart from './BarChart';
 import ImageModal from './ImageModal';
@@ -117,35 +118,47 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
   const dossierContainerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedCharacter, setEditedCharacter] = useState<Character>(character);
-  const [chartType, setChartType] = useState<'radar' | 'bar' | null>(null);
+  
+  // Replaced simple chartType toggle with a view mode state
+  const [statsViewMode, setStatsViewMode] = useState<'values' | 'radar' | 'bar'>('values');
+  
   const [modalImage, setModalImage] = useState<{src: string, alt: string} | null>(null);
   const [selectedPortraitIndex, setSelectedPortraitIndex] = useState(0);
   const [selectedOutfitIndex, setSelectedOutfitIndex] = useState<number | null>(null);
+  const [allBasicInfo, setAllBasicInfo] = useState<{id: string, name: string}[]>([]);
+
+  // State for new relationship input
+  const [newRelationName, setNewRelationName] = useState('');
+  const [newRelationDesc, setNewRelationDesc] = useState('');
+
   const { t } = useI18n();
   const displayedCharacterId = useRef<string | null>(null);
   
   const resolvedBgUrl = useResolvedImageUrl(editedCharacter.backgroundImageUrl);
   
   useEffect(() => {
-    // This effect synchronizes the component's state with the `character` prop.
-    // It should ONLY run when the character prop changes to a different character.
+      apiService.getAllCharactersBasicInfo().then(setAllBasicInfo);
+  }, []);
+
+  useEffect(() => {
     if (character.id !== displayedCharacterId.current) {
         displayedCharacterId.current = character.id;
-
-        // A new character has been selected from the list.
-        // Reset all local state to reflect the new character.
         setEditedCharacter(character);
-        setChartType(null);
+        setStatsViewMode('values'); // Reset to values view on char change
         setSelectedPortraitIndex(0);
         setSelectedOutfitIndex(null);
-
-        // Determine if this new character should start in edit mode.
         setIsEditing(isNewlyAdded && userRole === 'admin');
     }
   }, [character, isNewlyAdded, userRole]);
 
+  // Force view mode to 'values' when editing starts
+  useEffect(() => {
+      if (isEditing) {
+          setStatsViewMode('values');
+      }
+  }, [isEditing]);
 
-  // Derived state for easier access
+
   const currentPortrait = editedCharacter.portraits?.[selectedPortraitIndex];
   const currentOutfit = selectedOutfitIndex !== null ? currentPortrait?.outfits?.[selectedOutfitIndex] : null;
   const resolvedOutfitUrl = useResolvedImageUrl(currentOutfit?.imageUrl);
@@ -194,8 +207,37 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             }
         }));
   };
+
+  // --- Relationship Logic ---
+  const handleAddRelationship = () => {
+      if (!newRelationName.trim()) return;
+
+      // Try to find if the entered name matches an existing character
+      const existingChar = allBasicInfo.find(c => c.name.toLowerCase() === newRelationName.trim().toLowerCase());
+      
+      const newRelationship: Relationship = {
+          id: crypto.randomUUID(),
+          targetId: existingChar ? existingChar.id : null,
+          targetName: existingChar ? existingChar.name : newRelationName.trim(), // Use canonical name if found
+          description: newRelationDesc.trim()
+      };
+
+      setEditedCharacter(prev => ({
+          ...prev,
+          relationshipLinks: [...(prev.relationshipLinks || []), newRelationship]
+      }));
+
+      setNewRelationName('');
+      setNewRelationDesc('');
+  };
+
+  const handleDeleteRelationship = (relId: string) => {
+      setEditedCharacter(prev => ({
+          ...prev,
+          relationshipLinks: (prev.relationshipLinks || []).filter(r => r.id !== relId)
+      }));
+  };
   
-  // --- Portrait Handlers ---
   const handlePortraitChange = (index: number, field: 'name', value: string) => {
     setEditedCharacter(prev => ({
       ...prev,
@@ -244,8 +286,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
     });
   };
 
-
-  // --- Outfit Handlers (now relative to current portrait) ---
   const handleOutfitChange = (outfitId: string, field: 'arcName', value: string) => {
     setEditedCharacter(prev => ({
         ...prev,
@@ -300,9 +340,9 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         
         let newSelectedOutfitIndex = selectedOutfitIndex;
         if (selectedOutfitIndex === outfitIndexToDelete) {
-            newSelectedOutfitIndex = null; // Deselect if deleting the active one
+            newSelectedOutfitIndex = null;
         } else if (selectedOutfitIndex !== null && selectedOutfitIndex > outfitIndexToDelete) {
-            newSelectedOutfitIndex = selectedOutfitIndex - 1; // Adjust index down
+            newSelectedOutfitIndex = selectedOutfitIndex - 1;
         }
         setSelectedOutfitIndex(newSelectedOutfitIndex);
 
@@ -317,7 +357,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
       });
   };
 
-  // --- Gallery Handlers ---
   const handleAddGalleryImage = () => {
     const newImage: GalleryImage = {
         id: crypto.randomUUID(),
@@ -400,7 +439,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         const container = dossierContainerRef.current;
         if (element && container) {
             container.scrollTo({
-                top: element.offsetTop - 16, // 16px offset for padding
+                top: element.offsetTop - 16,
                 behavior: 'smooth',
             });
         }
@@ -419,12 +458,11 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
         />
       )}
       <div 
-        className="rounded-xl shadow-lg flex flex-col md:flex-row gap-6 p-6 transition-all duration-300 ease-in-out relative overflow-hidden"
+        className={`rounded-xl shadow-lg flex flex-col md:flex-row gap-6 p-6 transition-all duration-300 ease-in-out relative overflow-hidden ${editedCharacter.isNpc ? 'border border-slate-600' : ''}`}
         style={backgroundStyle}
       >
         {canEdit && <input type="file" ref={backgroundFileInputRef} onChange={handleBackgroundFileChange} accept="image/*" className="hidden"/>}
         
-        {/* --- GLOBAL ACTION BUTTONS --- */}
         {canEdit && (
             <div className="absolute top-4 right-4 z-20 flex gap-2">
                 {isEditing ? (
@@ -448,10 +486,11 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             </div>
         )}
 
-        {/* --- LEFT PANEL: ID CARD --- */}
         <div className="flex-shrink-0 w-full md:w-1/3 space-y-4">
-            {/* --- OUTFIT IMAGE --- */}
-            <div className="relative w-full aspect-square max-w-sm mx-auto rounded-xl border-4 border-secondary/75 shadow-lg object-cover overflow-hidden bg-primary group">
+            <div 
+                className={`relative w-full aspect-square max-w-sm mx-auto rounded-xl border-4 shadow-lg object-cover overflow-hidden bg-primary group 
+                ${editedCharacter.isNpc ? 'border-slate-600 grayscale-[0.2]' : 'border-secondary/75'}`}
+            >
                 <div onClick={() => !isEditing && displayedImageUrl && setModalImage({ src: displayedImageUrl, alt: displayedImageAlt })} className={`${!isEditing && displayedImageUrl ? 'cursor-pointer' : ''}`}>
                     {displayedImageUrl ? (
                         <img src={displayedImageUrl} alt={displayedImageAlt} className="w-full h-full object-cover"/>
@@ -461,7 +500,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                 </div>
             </div>
             
-            {/* --- PORTRAIT & OUTFIT SELECTORS --- */}
              <div className="flex flex-col items-center gap-3">
                  <div className="w-full text-center">
                     <div className="text-3xl font-bold text-white break-words font-display flex items-center justify-center gap-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
@@ -471,16 +509,18 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                             <>
                                 <h3>{editedCharacter.name}</h3>
                                 {editedCharacter.isNpc && (
-                                    <span className="bg-gray-700/80 text-white text-xs px-2 py-1 rounded border border-gray-500 font-sans tracking-wide align-middle" title={t('characterCard.isNpc')}>
+                                    <span className="bg-slate-700/80 text-slate-300 text-xs px-2 py-1 rounded border border-slate-500 font-sans tracking-wide align-middle" title={t('characterCard.isNpc')}>
                                         {t('characterCard.isNpc')}
                                     </span>
                                 )}
                             </>
                         )}
                     </div>
-                    <div className="mt-1 min-h-8"> {/* Fixed height to prevent layout shift when editing */}
+                    
+                    {/* Alias Section */}
+                    <div className="mt-2 min-h-8 flex flex-col items-center justify-center">
                         {isEditing ? (
-                            <div className="space-y-2">
+                            <div className="space-y-2 w-full max-w-[200px]">
                                 <input 
                                     type="text" 
                                     name="alias" 
@@ -489,7 +529,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                     placeholder={t('characterCard.placeholders.alias')}
                                     className="w-full bg-secondary/70 border border-secondary rounded-md p-1.5 text-text-primary focus:ring-accent focus:border-accent transition text-center text-lg placeholder:text-slate-500" 
                                 />
-                                <label className="flex items-center justify-center gap-2 text-sm text-text-secondary cursor-pointer bg-secondary/40 p-1 rounded hover:bg-secondary/60 transition">
+                                <label className="flex items-center justify-center gap-2 text-sm text-text-secondary cursor-pointer bg-secondary/40 p-1 rounded hover:bg-secondary/60 transition select-none">
                                     <input 
                                         type="checkbox" 
                                         name="isNpc" 
@@ -501,7 +541,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                                 </label>
                             </div>
                         ) : (
-                            editedCharacter.alias && <p className="text-lg text-accent/90 font-display tracking-wider">"{editedCharacter.alias}"</p>
+                            editedCharacter.alias && <p className="text-xl text-accent/90 font-display tracking-wider italic">"{editedCharacter.alias}"</p>
                         )}
                     </div>
                 </div>
@@ -548,10 +588,8 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                 )}
             </div>
 
-            {/* --- EDITING UI FOR PORTRAITS & OUTFITS --- */}
             {isEditing && (
                 <div className="space-y-4">
-                    {/* Portrait Editor */}
                     <div className="space-y-3 p-3 bg-primary/60 rounded-lg max-h-60 overflow-y-auto">
                         <h4 className="text-lg font-semibold text-accent mb-2 text-center">{t('characterCard.editPortraits')}</h4>
                         {editedCharacter.portraits.map((portrait, index) => {
@@ -580,7 +618,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                         </button>
                     </div>
 
-                    {/* Outfit Editor for selected portrait */}
                     {currentPortrait && (
                        <div className="space-y-3 p-3 bg-primary/60 rounded-lg max-h-60 overflow-y-auto">
                         <h4 className="text-lg font-semibold text-accent mb-2 text-center">{t('characterCard.editOutfitsFor', { portraitName: currentPortrait.name })}</h4>
@@ -614,7 +651,6 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
             )}
         </div>
         
-        {/* --- RIGHT PANEL: DOSSIER --- */}
         <div className="flex-1 w-full md:w-2/3 flex flex-col">
             <div className="border-b border-secondary/50 flex flex-wrap -mb-px">
                 {dossierSections.map(section => (
@@ -660,36 +696,155 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
                         <section id="dossier-personality" className="mb-8"><SimpleEditableSection title={t('characterCard.personality')} content={editedCharacter.personality} name="personality" isEditing={isEditing} onChange={handleInputChange}/></section>
                         <section id="dossier-appearance" className="mb-8"><SimpleEditableSection title={t('characterCard.appearance')} content={editedCharacter.appearanceDescription} name="appearanceDescription" isEditing={isEditing} onChange={handleInputChange}/></section>
                         <section id="dossier-powers" className="mb-8"><SimpleEditableSection title={t('characterCard.powers')} content={editedCharacter.powers} name="powers" isEditing={isEditing} onChange={handleInputChange}/></section>
-                        <section id="dossier-relationships" className="mb-8"><SimpleEditableSection title={t('characterCard.relationships')} content={editedCharacter.relationships} name="relationships" isEditing={isEditing} onChange={handleInputChange}/></section>
                         
-                        <section id="dossier-stats" className="mb-8">
-                            <h3 className="text-2xl font-bold text-accent mb-3 border-b-2 border-accent/30 pb-2 font-display">{t('characterCard.stats')}</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {STAT_KEYS.map(key => (
-                                    <div key={key} className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg text-center">
-                                        <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{t(`characterCard.statsShort.${key}`)}</h4>
-                                        {isEditing ? (
-                                            <input type="number" name={key} value={editedCharacter.stats[key]} onChange={handleStatChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center"/>
-                                        ) : (
-                                            <p className="text-text-primary text-xl font-bold">{editedCharacter.stats[key]}</p>
+                        {/* Relationships Section */}
+                        <section id="dossier-relationships" className="mb-8">
+                             <div className="flex justify-between items-center mb-3 border-b-2 border-accent/30 pb-2">
+                                <h3 className="text-2xl font-bold text-accent font-display">{t('characterCard.relationships')}</h3>
+                            </div>
+                            
+                            <div className="grid gap-3 mb-6">
+                                {(editedCharacter.relationshipLinks || []).length === 0 && !isEditing && (
+                                    <p className="text-text-secondary italic">{t('characterCard.noInformation')}</p>
+                                )}
+                                {(editedCharacter.relationshipLinks || []).map(rel => (
+                                    <div key={rel.id} className="bg-primary/40 border border-secondary rounded-lg p-3 flex items-start justify-between group">
+                                        <div>
+                                            <h4 className="font-bold text-lg text-text-primary">{rel.targetName}</h4>
+                                            <p className="text-text-secondary text-sm italic">{rel.description}</p>
+                                        </div>
+                                        {isEditing && (
+                                            <button 
+                                                onClick={() => handleDeleteRelationship(rel.id)}
+                                                className="text-red-400 hover:text-red-300 p-1"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            </button>
                                         )}
                                     </div>
                                 ))}
                             </div>
-                            {!isEditing && (
-                                <>
-                                    <div className="flex gap-2 justify-end my-4">
-                                        <button onClick={() => setChartType(p => p === 'radar' ? null : 'radar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'radar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.radar')}</button>
-                                        <button onClick={() => setChartType(p => p === 'bar' ? null : 'bar')} className={`px-4 py-2 rounded-md font-semibold text-sm transition-colors ${chartType === 'bar' ? 'bg-accent text-white shadow-lg' : 'bg-primary hover:bg-slate-700 text-text-primary'}`}>{t('characterCard.bar')}</button>
-                                    </div>
-                                    <div className={`grid transition-all duration-500 ease-in-out ${chartType ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
-                                        <div className="overflow-hidden min-h-0">
-                                            {chartType === 'radar' && <RadarChart stats={character.stats} size={300} />}
-                                            {chartType === 'bar' && <BarChart stats={character.stats} width={450} height={300} />}
+
+                            {isEditing && (
+                                <div className="bg-primary/60 p-4 rounded-lg mb-6 border border-secondary/50">
+                                    <h5 className="text-sm font-bold text-accent uppercase mb-3">{t('characterCard.addRelationship')}</h5>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                        <div>
+                                            <label className="text-xs text-text-secondary mb-1 block">{t('characterCard.targetCharacter')}</label>
+                                            <input 
+                                                list="character-options" 
+                                                type="text" 
+                                                value={newRelationName} 
+                                                onChange={(e) => setNewRelationName(e.target.value)}
+                                                className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"
+                                                placeholder={t('characterCard.placeholders.alias')}
+                                            />
+                                            <datalist id="character-options">
+                                                {allBasicInfo.filter(c => c.id !== character.id).map(c => (
+                                                    <option key={c.id} value={c.name} />
+                                                ))}
+                                            </datalist>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-text-secondary mb-1 block">{t('characterCard.description')}</label>
+                                            <input 
+                                                type="text" 
+                                                value={newRelationDesc}
+                                                onChange={(e) => setNewRelationDesc(e.target.value)}
+                                                className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"
+                                                placeholder={t('characterCard.relationPlaceholder')}
+                                            />
                                         </div>
                                     </div>
+                                    <button 
+                                        onClick={handleAddRelationship} 
+                                        className="w-full bg-accent/20 text-accent font-semibold hover:bg-accent/40 py-2 rounded-lg transition-colors"
+                                    >
+                                        {t('characterCard.addRelationship')}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Legacy / Freeform Text Area */}
+                            {(editedCharacter.relationships || isEditing) && (
+                                <>
+                                    <label className="text-sm text-text-secondary uppercase tracking-wider font-semibold mt-6 block mb-2">{t('characterCard.relationshipNotes')}</label>
+                                    {isEditing ? (
+                                        <textarea
+                                            name="relationships"
+                                            value={editedCharacter.relationships}
+                                            onChange={handleInputChange}
+                                            rows={5}
+                                            className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition"
+                                            placeholder={t('characterCard.placeholders.details')}
+                                        />
+                                    ) : (
+                                        <div className="prose prose-invert max-w-none prose-p:text-text-primary whitespace-pre-wrap text-sm">
+                                            {editedCharacter.relationships ? editedCharacter.relationships.split('\n\n').map((paragraph, index) => <p key={index}>{paragraph}</p>) : null}
+                                        </div>
+                                    )}
                                 </>
                             )}
+                        </section>
+                        
+                        <section id="dossier-stats" className="mb-8">
+                            <div className="flex justify-between items-center mb-3 border-b-2 border-accent/30 pb-2">
+                                <h3 className="text-2xl font-bold text-accent font-display">{t('characterCard.stats')}</h3>
+                                {!isEditing && (
+                                    <div className="flex bg-secondary/50 rounded-md p-1 gap-1">
+                                        <button 
+                                            onClick={() => setStatsViewMode('values')} 
+                                            className={`px-3 py-1 text-xs font-bold rounded transition-colors ${statsViewMode === 'values' ? 'bg-accent text-white' : 'text-text-secondary hover:text-white'}`}
+                                        >
+                                            #
+                                        </button>
+                                        <button 
+                                            onClick={() => setStatsViewMode('radar')} 
+                                            className={`px-3 py-1 text-xs font-bold rounded transition-colors ${statsViewMode === 'radar' ? 'bg-accent text-white' : 'text-text-secondary hover:text-white'}`}
+                                        >
+                                            {t('characterCard.radar')}
+                                        </button>
+                                        <button 
+                                            onClick={() => setStatsViewMode('bar')} 
+                                            className={`px-3 py-1 text-xs font-bold rounded transition-colors ${statsViewMode === 'bar' ? 'bg-accent text-white' : 'text-text-secondary hover:text-white'}`}
+                                        >
+                                            {t('characterCard.bar')}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* View Switching Logic */}
+                            <div className="min-h-[200px]">
+                                {isEditing || statsViewMode === 'values' ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-fade-in">
+                                        {STAT_KEYS.map(key => (
+                                            <div key={key} className="bg-primary/60 backdrop-blur-sm p-3 rounded-lg text-center border border-transparent hover:border-accent/30 transition-colors">
+                                                <h4 className="font-semibold text-accent/80 text-sm uppercase tracking-wider mb-1">{t(`characterCard.statsShort.${key}`)}</h4>
+                                                {isEditing ? (
+                                                    <input type="number" name={key} value={editedCharacter.stats[key]} onChange={handleStatChange} className="w-full bg-secondary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-accent focus:border-accent transition text-center font-bold"/>
+                                                ) : (
+                                                    <p className="text-text-primary text-2xl font-bold">{editedCharacter.stats[key]}</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : null}
+
+                                {!isEditing && statsViewMode === 'radar' && (
+                                    <div className="animate-fade-in py-4">
+                                        <RadarChart stats={character.stats} size={300} />
+                                    </div>
+                                )}
+
+                                {!isEditing && statsViewMode === 'bar' && (
+                                    <div className="animate-fade-in py-4">
+                                        <BarChart stats={character.stats} width={500} height={300} />
+                                    </div>
+                                )}
+                            </div>
                         </section>
                         <section id="dossier-trivia" className="mb-8"><SimpleEditableSection title={t('characterCard.trivia')} content={editedCharacter.trivia} name="trivia" isEditing={isEditing} onChange={handleInputChange}/></section>
                          <section id="dossier-gallery">
