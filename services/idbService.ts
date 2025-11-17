@@ -100,6 +100,22 @@ export async function getImage(key: string): Promise<Blob | null> {
   });
 }
 
+export async function checkImageExists(key: string): Promise<boolean> {
+    const dbInstance = await getDB();
+    return new Promise((resolve, reject) => {
+      const transaction = dbInstance.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.count(key);
+  
+      request.onsuccess = () => {
+        resolve((request.result as number) > 0);
+      };
+      request.onerror = () => {
+        resolve(false);
+      };
+    });
+}
+
 export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> {
     const dbInstance = await getDB();
     return new Promise((resolve, reject) => {

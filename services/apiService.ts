@@ -149,6 +149,7 @@ export const resolveImageUrl = async (key: string | null | undefined): Promise<s
             }
         } catch (e) {
             console.warn(`Failed to resolve image for key ${key}`, e);
+            return null;
         }
     }
     // For backwards compatibility with old base64 strings
@@ -157,6 +158,15 @@ export const resolveImageUrl = async (key: string | null | undefined): Promise<s
     }
     return null;
 };
+
+// Helper for import verification
+export const verifyImageExists = async (key: string): Promise<boolean> => {
+    if (key.startsWith('idb://')) {
+        return await idbService.checkImageExists(key);
+    }
+    return true; 
+};
+
 
 // --- Customization ---
 const LOGO_KEY = 'elvarium_logo';

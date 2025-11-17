@@ -108,24 +108,22 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin, authBannerUrl, logoUrl, ba
   }
 
   return (
-    <div className="w-full h-screen relative overflow-hidden flex flex-col items-center justify-center p-4">
-       {/* Dedicated Background Layer - Fixed to cover viewport, z-0 for base layer */}
-       {backgroundImageUrl ? (
+    <div className="w-full h-screen h-[100dvh] relative overflow-hidden flex flex-col items-center justify-center p-4">
+       {/* Background Layer */}
+       {backgroundImageUrl && (
            <div 
                 className="fixed inset-0 z-0"
                 style={{
-                    backgroundImage: `url(${backgroundImageUrl})`,
+                    backgroundImage: `url("${backgroundImageUrl}")`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
                 }}
-           >
-               {/* Dark Overlay for readability */}
-               <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px]"></div>
-           </div>
-       ) : (
-            // Fallback visual if no image is present, to prevent transparency showing weird underlayers
-            <div className="fixed inset-0 z-0 bg-slate-900/80 backdrop-blur-sm"></div>
+           />
        )}
+       
+       {/* Overlay Layer - Applies tint over image or serves as fallback background */}
+       <div className={`fixed inset-0 z-0 ${backgroundImageUrl ? 'bg-slate-900/60' : 'bg-slate-900/80'} backdrop-blur-[2px]`}></div>
 
        {/* Content Container - z-10 to sit above background */}
        <div className="relative z-10 w-full max-w-sm flex flex-col items-center">

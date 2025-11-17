@@ -64,9 +64,11 @@ const App: React.FC = () => {
         apiService.getAuthBanner(),
         apiService.getHomeBackground(),
     ]);
-    if (logoKey) apiService.resolveImageUrl(logoKey).then(setLogoImageUrl);
-    if (authBannerKey) apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
-    if (homeBgKey) apiService.resolveImageUrl(homeBgKey).then(setHomeBgUrl);
+    
+    // Always resolving - if key is null, resolveImageUrl returns null
+    apiService.resolveImageUrl(logoKey).then(setLogoImageUrl);
+    apiService.resolveImageUrl(authBannerKey).then(setAuthBannerUrl);
+    apiService.resolveImageUrl(homeBgKey).then(setHomeBgUrl);
   };
 
   const loadInitialData = async () => {
@@ -191,12 +193,15 @@ const App: React.FC = () => {
               // Clean URL before hard reload
               window.history.replaceState(null, '', window.location.pathname);
               
-              // Explicit wait to ensure IDB flush. 
-              // We attempt a "read back" to force verifying the disk write before reloading
+              // Explicit wait and check to ensure IDB flush.
+              // We attempt a "read back" from IDB specifically to force verifying the disk write before reloading
               await new Promise(resolve => setTimeout(resolve, 2000));
               try {
                   // Attempt to read a key to verify DB is ready
-                  await apiService.getHomeBackground();
+                  const homeBgKey = await apiService.getHomeBackground();
+                  if (homeBgKey) {
+                      await apiService.verifyImageExists(homeBgKey);
+                  }
               } catch (e) { console.log("Flush verify pass"); }
 
               window.location.reload();
