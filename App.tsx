@@ -191,8 +191,9 @@ const App: React.FC = () => {
               // Clean URL before hard reload
               window.history.replaceState(null, '', window.location.pathname);
               
-              // Explicit wait to ensure IDB flush
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              // Explicit wait to ensure IDB flush. 
+              // Increased to 3000ms (3s) to be absolutely safe on slower mobile devices.
+              await new Promise(resolve => setTimeout(resolve, 3000));
               
               window.location.reload();
           }

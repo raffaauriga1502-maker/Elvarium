@@ -69,7 +69,6 @@ const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number 
             img.src = event.target.result as string;
             img.onload = () => {
                 // Optimization: If the image is already within bounds, do not use canvas to resize/recompress.
-                // This preserves the original file quality, format (including transparency/animations), and metadata.
                 if (img.width <= maxWidth && img.height <= maxHeight) {
                     resolve(file);
                     return;
@@ -98,7 +97,6 @@ const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number 
                 ctx.clearRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // For file types that support transparency, convert to PNG. Otherwise, use JPEG.
                 const transparentMimeTypes = ['image/png', 'image/gif', 'image/webp'];
                 const outputMimeType = transparentMimeTypes.includes(file.type) ? 'image/png' : 'image/jpeg';
                 
@@ -214,14 +212,12 @@ export const getAllCharactersBasicInfo = async (): Promise<{id: string, name: st
 
 export const getAllArcs = async (): Promise<string[]> => {
     const allArcs = new Set<string>();
-    // Use old full list to ensure all data is scanned, even before migration
     const characterTypes: CharacterType[] = ['Main Protagonist', 'Allies', 'Main Antagonist', 'Enemies']; 
 
     for (const type of characterTypes) {
         const characters = await getCharacters(type);
         if (characters) {
             for (const char of characters) {
-                // New structure
                 if (char.portraits) {
                     char.portraits.forEach(p => {
                         p.outfits.forEach(o => allArcs.add(o.arcName));
@@ -230,19 +226,17 @@ export const getAllArcs = async (): Promise<string[]> => {
                 if (char.arcs) {
                     char.arcs.forEach(arc => allArcs.add(arc));
                 }
-                
-                // Legacy structures for migration-proofing
                 const legacyChar = char as any;
-                if (legacyChar.outfits) { // Old outfit structure
+                if (legacyChar.outfits) {
                     legacyChar.outfits.forEach((o: any) => o.arcName && allArcs.add(o.arcName));
                 }
-                if (legacyChar.appearances) { // Even older "appearance" structure
+                if (legacyChar.appearances) {
                     legacyChar.appearances.forEach((a: any) => a.arcName && allArcs.add(a.arcName));
                 }
             }
         }
     }
-    return Array.from(allArcs).filter(Boolean).sort(); // filter out empty strings
+    return Array.from(allArcs).filter(Boolean).sort();
 };
 
 
@@ -305,27 +299,36 @@ export const importAllData = async (data: any): Promise<void> => {
         }
     }
     
-    // Import IndexedDB data using Bulk Operation
-    const imagesToSave: Record<string, Blob> = {};
+    // Import IndexedDB data using Memory-Safe Streaming Batch
     if (data.indexedDB) {
-        for (const key in data.indexedDB) {
-            if (Object.prototype.hasOwnProperty.call(data.indexedDB, key)) {
+        const keys = Object.keys(data.indexedDB);
+        // Process in small batches (5) to keep memory footprint low on mobile devices
+        const BATCH_SIZE = 5; 
+        
+        for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+            const batchKeys = keys.slice(i, i + BATCH_SIZE);
+            const batchImages: Record<string, Blob> = {};
+            
+            for (const key of batchKeys) {
                 try {
                     const dataUrl = data.indexedDB[key];
-                    // Basic validation
                     if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
-                         const blob = dataUrlToBlob(dataUrl);
-                         imagesToSave[key] = blob;
+                        // Convert to Blob immediately
+                        batchImages[key] = dataUrlToBlob(dataUrl);
                     }
                 } catch (e) {
                     console.warn(`Skipping invalid image data for key ${key}`, e);
                 }
             }
+            
+            if (Object.keys(batchImages).length > 0) {
+                // Save this batch immediately to DB
+                await idbService.setImagesBulk(batchImages);
+            }
+            
+            // Force a small pause to allow the UI thread to update and GC to run
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
-    }
-    
-    if (Object.keys(imagesToSave).length > 0) {
-        await idbService.setImagesBulk(imagesToSave);
     }
 
     // Crucial: Explicitly close the database connection to force a flush to disk
@@ -334,7 +337,6 @@ export const importAllData = async (data: any): Promise<void> => {
 };
 
 // --- Compression Helpers ---
-// Add safe checks for compression streams for older browsers (iOS < 16.4, etc)
 
 function isCompressionSupported() {
     return typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
@@ -342,8 +344,6 @@ function isCompressionSupported() {
 
 async function compressData(jsonString: string): Promise<Uint8Array> {
     if (!isCompressionSupported()) {
-        // Fallback: Just return string bytes (dumb fallback, but prevents crash)
-        // In reality, you'd use a JS library like pako, but for this no-dependency setup:
         const encoder = new TextEncoder();
         return encoder.encode(jsonString);
     }
@@ -364,7 +364,6 @@ async function compressData(jsonString: string): Promise<Uint8Array> {
 
 async function decompressData(compressed: Uint8Array): Promise<string> {
     if (!isCompressionSupported()) {
-        // Fallback assumption: It wasn't compressed or we can't decompress
         const decoder = new TextDecoder();
         return decoder.decode(compressed);
     }
@@ -409,7 +408,6 @@ function chunkString(str: string, length: number): string[] {
   return str.match(new RegExp('.{1,' + length + '}', 'g')) || [];
 }
 
-// Helper to process promises in batches to avoid network congestion
 async function processInBatches<T, R>(items: T[], batchSize: number, processItem: (item: T) => Promise<R>): Promise<R[]> {
     const results: R[] = [];
     for (let i = 0; i < items.length; i += batchSize) {
@@ -425,7 +423,6 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
         let textData = '';
 
         if (source === 'fileio') {
-            // Fetch from file.io using the key
             const response = await fetch(`https://file.io/${idOrIds}`);
              if (!response.ok) {
                  if (response.status === 404) {
@@ -436,19 +433,13 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
             textData = await response.text();
         } else if (source === 'dpaste-chunked') {
             const ids = idOrIds.split(',');
-            console.log(`Fetching ${ids.length} chunks from dpaste...`);
-            
-            // Process downloads in batches of 5 to avoid browser limits
             const chunks = await processInBatches(ids, 5, async (id) => {
                  const response = await fetch(`https://dpaste.com/${id}.txt`);
                  if (!response.ok) throw new Error(`Failed to fetch chunk ${id}`);
                  return response.text();
             });
-            
             textData = chunks.join('');
-            
         } else {
-            // Default to dpaste (single)
             const response = await fetch(`https://dpaste.com/${idOrIds}.txt`);
             if (!response.ok) {
                 throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
@@ -458,14 +449,11 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
         
         try {
             const parsed = JSON.parse(textData);
-            // Check if this is our compressed format
             if (parsed && parsed.compressed && parsed.data) {
-                console.log("Detected compressed shared data. Decompressing...");
                 const compressedBytes = base64ToUint8Array(parsed.data);
                 const decompressedJson = await decompressData(compressedBytes);
                 return JSON.parse(decompressedJson);
             }
-            // Fallback for legacy uncompressed shares
             return parsed;
         } catch (jsonError) {
             console.error("Error parsing shared data JSON:", jsonError);
@@ -474,12 +462,11 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
 
     } catch (error: any) {
         console.error("Failed to fetch shared world data:", error);
-        throw new Error(error.message || "The shared world data could not be retrieved. The link may have expired or the sharing service is unavailable.");
+        throw new Error(error.message || "The shared world data could not be retrieved.");
     }
 };
 
 const uploadToFileIo = async (payloadString: string): Promise<string> => {
-     // File.io expects a file upload. We create a Blob and append it.
      const blob = new Blob([payloadString], { type: 'application/json' });
      const formData = new FormData();
      formData.append('file', blob, 'elvarium_world.json');
@@ -499,7 +486,7 @@ const uploadToFileIo = async (payloadString: string): Promise<string> => {
 const uploadToDpaste = async (content: string): Promise<string> => {
     const formData = new URLSearchParams();
     formData.append('content', content);
-    formData.append('expiry_days', '7'); // Keep for 7 days
+    formData.append('expiry_days', '7');
     formData.append('syntax', 'json');
     formData.append('title', 'Elvarium Shared World Chunk');
     
@@ -519,14 +506,12 @@ const uploadToDpaste = async (content: string): Promise<string> => {
     throw new Error("Failed to upload to dpaste");
 }
 
-// Retry wrapper for robustness
 const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<string> => {
     for (let i = 0; i < retries; i++) {
         try {
             return await uploadToDpaste(content);
         } catch (e) {
             if (i === retries - 1) throw e;
-            // Wait 500ms before retry
             await new Promise(r => setTimeout(r, 500));
         }
     }
@@ -535,7 +520,6 @@ const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<st
 
 
 export const generateShareableLink = async (): Promise<{url: string, warning?: string}> => {
-    // Manually build the data object to ensure user data is excluded and image data is included.
     const SHAREABLE_LOCAL_STORAGE_KEYS = APP_KEYS.filter(
         key => key !== 'elvarium_users' && key !== 'elvarium_current_user'
     );
@@ -557,25 +541,21 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     
     const rawJsonString = JSON.stringify(dataToShare);
     
-    // Check if compression is available
     if (!isCompressionSupported()) {
-        // For older browsers, we can only share small worlds that fit in a single paste
-        const payloadObject = { compressed: false, data: btoa(rawJsonString) }; // Simple base64
+        const payloadObject = { compressed: false, data: btoa(rawJsonString) };
         const payloadString = JSON.stringify(payloadObject);
          try {
             const pasteId = await uploadToDpasteWithRetry(payloadString);
              const baseUrl = window.location.origin + window.location.pathname;
-            return { url: `${baseUrl}#id=${pasteId}`, warning: "Compression not supported on this browser. Only small worlds can be shared." };
+            return { url: `${baseUrl}#id=${pasteId}`, warning: "Compression not supported. Only small worlds can be shared." };
         } catch (e: any) {
-            throw new Error("Browser too old for compression, and data too large for uncompressed share.");
+            throw new Error("Data too large for this browser to share.");
         }
     }
     
-    // Compress the data to fit more content
     const compressedBytes = await compressData(rawJsonString);
     const base64Compressed = uint8ArrayToBase64(compressedBytes);
     
-    // Create a wrapper object to identify the compression
     const payloadObject = {
         compressed: true,
         data: base64Compressed
@@ -584,21 +564,13 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
     const payloadString = JSON.stringify(payloadObject);
     const sizeInBytes = new Blob([payloadString]).size;
     
-    console.log(`Payload size: ${(sizeInBytes / 1024).toFixed(2)} KB`);
-
     const baseUrl = window.location.origin + window.location.pathname;
     const url = new URL(baseUrl);
     url.search = '';
 
-    // Strategy: 
-    // 1. Size < 900KB: Single dpaste.
-    // 2. Size < ~180MB: Chunked dpaste (multi-download).
-    // 3. Size > ~180MB: file.io (single download) as absolute last resort.
+    const SINGLE_PASTE_LIMIT = 900 * 1024; 
+    const MAX_CHUNKS = 200; 
 
-    const SINGLE_PASTE_LIMIT = 900 * 1024; // 900KB safety buffer
-    const MAX_CHUNKS = 200; // ~180MB limit for chunking strategy (Very generous)
-
-    // 1. Small Payload
     if (sizeInBytes < SINGLE_PASTE_LIMIT) {
         try {
             const pasteId = await uploadToDpasteWithRetry(payloadString);
@@ -609,15 +581,10 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
         }
     }
 
-    // 2. Medium to Large Payload (Chunked)
     if (sizeInBytes < SINGLE_PASTE_LIMIT * MAX_CHUNKS) {
         try {
-            console.log("Payload too large for single paste, attempting chunking...");
             const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
-            
-            // Upload chunks in batches of 5 to avoid rate limits/network congestion
             const ids = await processInBatches(chunks, 5, async (chunk) => {
-                // Add a small delay to be polite to the API
                 await new Promise(r => setTimeout(r, 100));
                 return await uploadToDpasteWithRetry(chunk);
             });
@@ -629,22 +596,20 @@ export const generateShareableLink = async (): Promise<{url: string, warning?: s
         }
     }
 
-    // 3. Massive Payload (Fallback)
     try {
         const pasteId = await uploadToFileIo(payloadString);
         url.hash = `#fio=${pasteId}`;
         return { 
             url: url.href, 
-            warning: "Note: Because this world is extremely large (>180MB), we had to use a file host. This link is valid for ONE download only." 
+            warning: "Large world file (>180MB). Link valid for ONE download only via file.io." 
         };
     } catch (error: any) {
         console.error("All sharing services failed:", error);
-        throw new Error("Could not create a shareable link. The data is too large even for the fallback service. Please use 'Download File'.");
+        throw new Error("Could not share. Data is too large.");
     }
 };
 
 
-// This function is deprecated and will be removed. Use processAndStoreImage.
 export const imageFileToBase64 = (file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.8): Promise<string> => {
     return new Promise((resolve, reject) => {
         imageFileToBlob(file, maxWidth, maxHeight, quality).then(blob => {
