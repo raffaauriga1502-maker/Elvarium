@@ -370,14 +370,58 @@ function base64ToUint8Array(base64: string): Uint8Array {
 
 // --- Sharing Logic ---
 
-export const fetchSharedWorldData = async (id: string): Promise<any> => {
+export type ShareSource = 'dpaste' | 'fileio' | 'dpaste-chunked';
+
+function chunkString(str: string, length: number): string[] {
+  return str.match(new RegExp('.{1,' + length + '}', 'g')) || [];
+}
+
+// Helper to process promises in batches to avoid network congestion
+async function processInBatches<T, R>(items: T[], batchSize: number, processItem: (item: T) => Promise<R>): Promise<R[]> {
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        const batchResults = await Promise.all(batch.map(processItem));
+        results.push(...batchResults);
+    }
+    return results;
+}
+
+export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource = 'dpaste'): Promise<any> => {
     try {
-        // Use the .txt extension to get the raw content from dpaste.com
-        const response = await fetch(`https://dpaste.com/${id}.txt`);
-        if (!response.ok) {
-            throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
+        let textData = '';
+
+        if (source === 'fileio') {
+            // Fetch from file.io using the key
+            const response = await fetch(`https://file.io/${idOrIds}`);
+             if (!response.ok) {
+                 if (response.status === 404) {
+                      throw new Error("The shared file has been deleted or already downloaded. File.io links are valid for 1 download only.");
+                 }
+                throw new Error(`Could not fetch shared world data from file.io. Status: ${response.statusText}`);
+            }
+            textData = await response.text();
+        } else if (source === 'dpaste-chunked') {
+            const ids = idOrIds.split(',');
+            console.log(`Fetching ${ids.length} chunks from dpaste...`);
+            
+            // Process downloads in batches of 5 to avoid browser limits
+            const chunks = await processInBatches(ids, 5, async (id) => {
+                 const response = await fetch(`https://dpaste.com/${id}.txt`);
+                 if (!response.ok) throw new Error(`Failed to fetch chunk ${id}`);
+                 return response.text();
+            });
+            
+            textData = chunks.join('');
+            
+        } else {
+            // Default to dpaste (single)
+            const response = await fetch(`https://dpaste.com/${idOrIds}.txt`);
+            if (!response.ok) {
+                throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
+            }
+            textData = await response.text();
         }
-        const textData = await response.text();
         
         try {
             const parsed = JSON.parse(textData);
@@ -395,13 +439,69 @@ export const fetchSharedWorldData = async (id: string): Promise<any> => {
             throw new Error("Shared data is invalid or corrupted.");
         }
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to fetch shared world data:", error);
-        throw new Error("The shared world data could not be retrieved. The link may have expired or the sharing service is unavailable.");
+        throw new Error(error.message || "The shared world data could not be retrieved. The link may have expired or the sharing service is unavailable.");
     }
 };
 
-export const generateShareableLink = async (): Promise<string> => {
+const uploadToFileIo = async (payloadString: string): Promise<string> => {
+     // File.io expects a file upload. We create a Blob and append it.
+     const blob = new Blob([payloadString], { type: 'application/json' });
+     const formData = new FormData();
+     formData.append('file', blob, 'elvarium_world.json');
+     
+     const response = await fetch('https://file.io/', {
+         method: 'POST',
+         body: formData
+     });
+     
+     if (!response.ok) throw new Error(`File.io upload failed: ${response.statusText}`);
+     const json = await response.json();
+     if (!json.success) throw new Error('File.io reported failure');
+     
+     return json.key;
+}
+
+const uploadToDpaste = async (content: string): Promise<string> => {
+    const formData = new URLSearchParams();
+    formData.append('content', content);
+    formData.append('expiry_days', '7'); // Keep for 7 days
+    formData.append('syntax', 'json');
+    formData.append('title', 'Elvarium Shared World Chunk');
+    
+    const response = await fetch('https://dpaste.com/api/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+    });
+
+    if (response.ok) {
+        const pasteUrl = await response.text();
+        const id = pasteUrl.split('/').pop();
+        if (id) return id.trim();
+    }
+    throw new Error("Failed to upload to dpaste");
+}
+
+// Retry wrapper for robustness
+const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<string> => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await uploadToDpaste(content);
+        } catch (e) {
+            if (i === retries - 1) throw e;
+            // Wait 500ms before retry
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+    throw new Error("Unreachable");
+}
+
+
+export const generateShareableLink = async (): Promise<{url: string, warning?: string}> => {
     // Manually build the data object to ensure user data is excluded and image data is included.
     const SHAREABLE_LOCAL_STORAGE_KEYS = APP_KEYS.filter(
         key => key !== 'elvarium_users' && key !== 'elvarium_current_user'
@@ -435,46 +535,64 @@ export const generateShareableLink = async (): Promise<string> => {
     };
     
     const payloadString = JSON.stringify(payloadObject);
+    const sizeInBytes = new Blob([payloadString]).size;
     
-    // We no longer check sizeInBytes > 1MB here to allow users to try sending larger worlds if needed.
-    // Note: dpaste may reject payloads larger than ~1MB with a 413 or 400 error.
+    console.log(`Payload size: ${(sizeInBytes / 1024).toFixed(2)} KB`);
 
+    const baseUrl = window.location.origin + window.location.pathname;
+    const url = new URL(baseUrl);
+    url.search = '';
+
+    // Strategy: 
+    // 1. Size < 900KB: Single dpaste.
+    // 2. Size < ~180MB: Chunked dpaste (multi-download).
+    // 3. Size > ~180MB: file.io (single download) as absolute last resort.
+
+    const SINGLE_PASTE_LIMIT = 900 * 1024; // 900KB safety buffer
+    const MAX_CHUNKS = 200; // ~180MB limit for chunking strategy (Very generous)
+
+    // 1. Small Payload
+    if (sizeInBytes < SINGLE_PASTE_LIMIT) {
+        try {
+            const pasteId = await uploadToDpasteWithRetry(payloadString);
+            url.hash = `#id=${pasteId}`;
+            return { url: url.href };
+        } catch (e) {
+            console.warn("dpaste single failed, falling back to chunks", e);
+        }
+    }
+
+    // 2. Medium to Large Payload (Chunked)
+    if (sizeInBytes < SINGLE_PASTE_LIMIT * MAX_CHUNKS) {
+        try {
+            console.log("Payload too large for single paste, attempting chunking...");
+            const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
+            
+            // Upload chunks in batches of 5 to avoid rate limits/network congestion
+            const ids = await processInBatches(chunks, 5, async (chunk) => {
+                // Add a small delay to be polite to the API
+                await new Promise(r => setTimeout(r, 100));
+                return await uploadToDpasteWithRetry(chunk);
+            });
+            
+            url.hash = `#chunks=${ids.join(',')}`;
+            return { url: url.href };
+        } catch (e) {
+             console.warn("Chunking failed, falling back to file.io", e);
+        }
+    }
+
+    // 3. Massive Payload (Fallback)
     try {
-        const formData = new URLSearchParams();
-        formData.append('content', payloadString);
-        formData.append('expiry_days', '7'); // Keep for 7 days
-        formData.append('syntax', 'json');
-        formData.append('title', 'Elvarium Shared World');
-        
-        const response = await fetch('https://dpaste.com/api/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: formData,
-        });
-
-        if (!response.ok) {
-            throw new Error(`Sharing service returned an error: ${response.statusText}`);
-        }
-        
-        const pasteUrl = await response.text();
-        const pasteId = pasteUrl.split('/').pop();
-
-        if (!pasteId) {
-            throw new Error('Could not parse the shared data ID from dpaste.com response.');
-        }
-
-        const baseUrl = window.location.origin + window.location.pathname;
-        const url = new URL(baseUrl);
-        url.search = '';
-        url.hash = `#id=${pasteId}`;
-
-        return url.href;
-
+        const pasteId = await uploadToFileIo(payloadString);
+        url.hash = `#fio=${pasteId}`;
+        return { 
+            url: url.href, 
+            warning: "Note: Because this world is extremely large (>180MB), we had to use a file host. This link is valid for ONE download only." 
+        };
     } catch (error: any) {
-        console.error("Failed to upload world data for sharing:", error);
-        throw new Error("Could not create a shareable link. The data might be too large for the sharing service, or the service is down. Try using 'Download File' instead.");
+        console.error("All sharing services failed:", error);
+        throw new Error("Could not create a shareable link. The data is too large even for the fallback service. Please use 'Download File'.");
     }
 };
 

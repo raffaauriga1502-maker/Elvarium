@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { View, CharacterType, User } from './types';
 import * as apiService from './services/apiService';
@@ -156,9 +157,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
   const handleGenerateShareLink = async () => {
     setShareStatus('generating');
     try {
-      const link = await apiService.generateShareableLink();
-      await navigator.clipboard.writeText(link);
+      const result = await apiService.generateShareableLink();
+      await navigator.clipboard.writeText(result.url);
       setShareStatus('copied');
+      
+      if (result.warning) {
+          alert(result.warning);
+      }
+      
       setTimeout(() => setShareStatus('idle'), 3000);
     } catch (error: any) {
         console.error("Failed to generate share link:", error);

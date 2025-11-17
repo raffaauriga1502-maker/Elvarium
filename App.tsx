@@ -43,7 +43,7 @@ function base64ToUint8Array(base64: string): Uint8Array {
 
 // Interface for holding import data from a URL before the user is authenticated.
 interface PendingImport {
-  type: 'id' | 'data';
+  type: 'id' | 'data' | 'fio' | 'chunks';
   value: string;
   isCompressed?: boolean;
 }
@@ -59,6 +59,7 @@ const App: React.FC = () => {
   const [importData, setImportData] = useState<string | null>(null);
   const [importIsCompressed, setImportIsCompressed] = useState(false);
   const [sharedWorldId, setSharedWorldId] = useState<string | null>(null);
+  const [sharedWorldSource, setSharedWorldSource] = useState<apiService.ShareSource>('dpaste');
 
   // State to hold import info from a URL before user is authenticated
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
@@ -90,6 +91,12 @@ const App: React.FC = () => {
       if (window.location.hash.startsWith('#id=')) {
           const id = window.location.hash.substring(4);
           if (id) foundImport = { type: 'id', value: id };
+      } else if (window.location.hash.startsWith('#chunks=')) {
+          const ids = window.location.hash.substring(8);
+          if (ids) foundImport = { type: 'chunks', value: ids };
+      } else if (window.location.hash.startsWith('#fio=')) {
+          const id = window.location.hash.substring(5);
+          if (id) foundImport = { type: 'fio', value: id };
       } else if (window.location.hash.startsWith('#cdata=')) {
           const urlSafeBase64 = window.location.hash.substring(7);
           if (urlSafeBase64) foundImport = { type: 'data', value: urlSafeBase64, isCompressed: true };
@@ -118,6 +125,13 @@ const App: React.FC = () => {
     if (pendingImport) {
         if (pendingImport.type === 'id') {
             setSharedWorldId(pendingImport.value);
+            setSharedWorldSource('dpaste');
+        } else if (pendingImport.type === 'chunks') {
+            setSharedWorldId(pendingImport.value); // value is "id1,id2,id3"
+            setSharedWorldSource('dpaste-chunked');
+        } else if (pendingImport.type === 'fio') {
+            setSharedWorldId(pendingImport.value);
+            setSharedWorldSource('fileio');
         } else if (pendingImport.type === 'data') {
             setImportData(pendingImport.value);
             setImportIsCompressed(!!pendingImport.isCompressed);
@@ -163,22 +177,17 @@ const App: React.FC = () => {
       try {
           let dataToImport;
           if (sharedWorldId) {
-               dataToImport = await apiService.fetchSharedWorldData(sharedWorldId);
+               dataToImport = await apiService.fetchSharedWorldData(sharedWorldId, sharedWorldSource);
           } else if (importData) {
                let jsonString = importData;
                if (importIsCompressed) {
                   // The Base64 string from URL needs to be converted back to Uint8Array
-                  // We use a modified base64 decoder that handles URL-safe strings if needed,
-                  // though standard atob often works if padding is correct.
-                  // For robustness, ensure standard base64 chars.
                   const base64 = importData.replace(/-/g, '+').replace(/_/g, '/');
                   const compressedBytes = base64ToUint8Array(base64);
                   jsonString = await decompressData(compressedBytes);
                } else {
                   // If raw data passed (legacy or small share), decode from base64
                   const decoded = atob(importData);
-                   // Decode URI component in case of special chars, though base64 usually handles this.
-                   // Actually, straightforward base64 decode for JSON string is safer.
                   jsonString = decoded;
                }
                dataToImport = JSON.parse(jsonString);
@@ -191,7 +200,7 @@ const App: React.FC = () => {
           }
       } catch (error: any) {
           console.error("Import failed:", error);
-          throw new Error(t('app.errors.importFailed'));
+          throw new Error(error.message || t('app.errors.importFailed'));
       } finally {
           setSharedWorldId(null);
           setImportData(null);
