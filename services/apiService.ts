@@ -1,3 +1,5 @@
+
+
 import { User, Character, CharacterType } from '../types';
 import * as idbService from './idbService';
 
@@ -55,7 +57,7 @@ export const removeCurrentUser = (): Promise<void> => removeItem(CURRENT_USER_KE
 
 
 // --- Image Utility ---
-const imageFileToBlob = (file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.8): Promise<Blob> => {
+const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number = 2048, quality: number = 0.9): Promise<Blob> => {
     return new Promise((resolve, reject) => {
         if (!file.type.startsWith('image/')) return reject(new Error('File is not an image.'));
 
@@ -67,8 +69,9 @@ const imageFileToBlob = (file: File, maxWidth: number = 800, maxHeight: number =
             const img = new Image();
             img.src = event.target.result as string;
             img.onload = () => {
-                // If the image is a PNG and already within bounds, return the original file to preserve transparency perfectly.
-                if (file.type === 'image/png' && img.width <= maxWidth && img.height <= maxHeight) {
+                // Optimization: If the image is already within bounds, do not use canvas to resize/recompress.
+                // This preserves the original file quality, format (including transparency/animations), and metadata.
+                if (img.width <= maxWidth && img.height <= maxHeight) {
                     resolve(file);
                     return;
                 }
@@ -315,7 +318,8 @@ export const importAllData = async (data: any): Promise<void> => {
     }
 };
 
-// --- Compression & Sharing Logic ---
+// --- Compression Helpers ---
+
 async function compressData(jsonString: string): Promise<Uint8Array> {
     const stream = new Blob([jsonString]).stream();
     const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
@@ -331,6 +335,20 @@ async function compressData(jsonString: string): Promise<Uint8Array> {
     return new Uint8Array(buffer);
 }
 
+async function decompressData(compressed: Uint8Array): Promise<string> {
+    const stream = new Blob([compressed]).stream();
+    const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
+    const reader = new Response(decompressedStream).body!.getReader();
+    const chunks = [];
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+    }
+    const blob = new Blob(chunks);
+    return blob.text();
+}
+
 function uint8ArrayToBase64(bytes: Uint8Array): string {
     let binary = '';
     const len = bytes.byteLength;
@@ -340,6 +358,18 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     return btoa(binary);
 }
 
+function base64ToUint8Array(base64: string): Uint8Array {
+    const binary_string = window.atob(base64);
+    const len = binary_string.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes;
+}
+
+// --- Sharing Logic ---
+
 export const fetchSharedWorldData = async (id: string): Promise<any> => {
     try {
         // Use the .txt extension to get the raw content from dpaste.com
@@ -348,8 +378,23 @@ export const fetchSharedWorldData = async (id: string): Promise<any> => {
             throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
         }
         const textData = await response.text();
-        const data = JSON.parse(textData);
-        return data;
+        
+        try {
+            const parsed = JSON.parse(textData);
+            // Check if this is our compressed format
+            if (parsed && parsed.compressed && parsed.data) {
+                console.log("Detected compressed shared data. Decompressing...");
+                const compressedBytes = base64ToUint8Array(parsed.data);
+                const decompressedJson = await decompressData(compressedBytes);
+                return JSON.parse(decompressedJson);
+            }
+            // Fallback for legacy uncompressed shares
+            return parsed;
+        } catch (jsonError) {
+            console.error("Error parsing shared data JSON:", jsonError);
+            throw new Error("Shared data is invalid or corrupted.");
+        }
+
     } catch (error) {
         console.error("Failed to fetch shared world data:", error);
         throw new Error("The shared world data could not be retrieved. The link may have expired or the sharing service is unavailable.");
@@ -377,13 +422,29 @@ export const generateShareableLink = async (): Promise<string> => {
         indexedDB: indexedDBData,
     };
     
-    const dataString = JSON.stringify(dataToShare);
+    const rawJsonString = JSON.stringify(dataToShare);
+    
+    // Compress the data to fit more content
+    const compressedBytes = await compressData(rawJsonString);
+    const base64Compressed = uint8ArrayToBase64(compressedBytes);
+    
+    // Create a wrapper object to identify the compression
+    const payloadObject = {
+        compressed: true,
+        data: base64Compressed
+    };
+    
+    const payloadString = JSON.stringify(payloadObject);
+    
+    // We no longer check sizeInBytes > 1MB here to allow users to try sending larger worlds if needed.
+    // Note: dpaste may reject payloads larger than ~1MB with a 413 or 400 error.
 
-    // Use a free, anonymous text hosting service (dpaste.com) to store the large data payload.
-    // This service has an open CORS policy, allowing requests from any origin.
     try {
         const formData = new URLSearchParams();
-        formData.append('content', dataString);
+        formData.append('content', payloadString);
+        formData.append('expiry_days', '7'); // Keep for 7 days
+        formData.append('syntax', 'json');
+        formData.append('title', 'Elvarium Shared World');
         
         const response = await fetch('https://dpaste.com/api/', {
             method: 'POST',
@@ -411,9 +472,9 @@ export const generateShareableLink = async (): Promise<string> => {
 
         return url.href;
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to upload world data for sharing:", error);
-        throw new Error("Could not create a shareable link. The external sharing service may be down. Please try again later or use the 'Download File' feature.");
+        throw new Error("Could not create a shareable link. The data might be too large for the sharing service, or the service is down. Try using 'Download File' instead.");
     }
 };
 
