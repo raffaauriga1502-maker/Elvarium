@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { User } from '../types';
 import ViewHeader from './ViewHeader';
 import * as apiService from '../services/apiService';
@@ -103,16 +104,18 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onUserUpdate }) => {
     
     return (
         <div className="min-h-full p-6 md:p-8 relative">
-            {/* Dedicated Fixed Background Layer */}
-            {bgUrl && (
+            {/* Dedicated Fixed Background Layer - Teleported to body */}
+            {bgUrl && createPortal(
                 <div 
-                className="fixed inset-0 md:left-64 z-0"
+                className="fixed inset-0 z-0 pointer-events-none"
                 style={{
                     backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.5)), url(${bgUrl})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
+                    zIndex: 0
                 }}
-                />
+                />,
+                document.body
             )}
             
             {isEditing && (

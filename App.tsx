@@ -237,7 +237,8 @@ const App: React.FC = () => {
 
       return (
         // Use h-[100dvh] for mobile browsers to handle address bars correctly, fallback to h-screen
-        <div className="flex h-screen h-[100dvh] overflow-hidden">
+        // relative z-10 is crucial to sit above the portaled background layer which is at z-0
+        <div className="flex h-screen h-[100dvh] overflow-hidden relative z-10">
           <Sidebar 
             activeView={activeView} 
             setActiveView={setActiveView} 

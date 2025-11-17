@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import ViewHeader from './ViewHeader';
 import { User } from '../types';
 import * as apiService from '../services/apiService';
@@ -123,16 +124,18 @@ const HomeView: React.FC<HomeViewProps> = ({ userRole }) => {
     
     return (
         <div className="min-h-full p-6 md:p-8 relative">
-             {/* Dedicated Fixed Background Layer - Fixed to sidebar offset on Desktop */}
-             {bgUrl && (
+             {/* Dedicated Fixed Background Layer - Teleported to body to avoid stacking context issues */}
+             {bgUrl && createPortal(
                  <div 
-                    className="fixed inset-0 md:left-64 z-0"
+                    className="fixed inset-0 z-0 pointer-events-none"
                     style={{
                         backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.5)), url(${bgUrl})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
+                        zIndex: 0
                     }}
-                 />
+                 />,
+                 document.body
              )}
 
              {userRole === 'admin' && (
