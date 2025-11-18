@@ -156,17 +156,25 @@ export const processAndStoreImage = async (file: File, options: { maxWidth: numb
                 ctx.clearRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Force JPEG for anything substantial to save space/memory
-                // Only keep PNG if it's very small (likely an icon)
-                const usePng = file.type === 'image/png' && file.size < 200 * 1024;
-
-                if (usePng) {
-                     canvas.toBlob((b) => {
-                        if (b) resolve(b);
-                        else reject(new Error('Canvas to Blob conversion failed'));
-                    }, 'image/png');
-                } else { 
+                // Detect if we should use WebP (for transparency support + compression)
+                // or JPEG (for opaque images + compression)
+                const isTransparent = file.type === 'image/png' || file.type === 'image/webp' || file.type === 'image/gif';
+                
+                if (isTransparent) {
+                    // Use WebP to preserve transparency while compressing
                     canvas.toBlob((b) => {
+                        if (b) resolve(b);
+                         // Fallback if WebP fails or results in null (unlikely in modern browsers)
+                        else {
+                             canvas.toBlob((b2) => {
+                                if (b2) resolve(b2);
+                                else reject(new Error('Canvas to Blob conversion failed (fallback)'));
+                             }, 'image/png');
+                        }
+                    }, 'image/webp', 0.8); // 0.8 quality for storage
+                } else {
+                     // JPEG for everything else
+                     canvas.toBlob((b) => {
                         if (b) resolve(b);
                         else reject(new Error('Canvas to Blob conversion failed'));
                     }, 'image/jpeg', safeQuality);

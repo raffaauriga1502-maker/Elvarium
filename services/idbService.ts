@@ -159,14 +159,26 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
                  return;
             }
             
-            // Fill white background to handle transparent PNGs converting to JPEG
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, width, height);
-            
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Aggressive compression for sharing: JPEG at 40% quality
-            resolve(canvas.toDataURL('image/jpeg', 0.4));
+            // Detect if the source is likely transparent (PNG, WebP, GIF)
+            const isTransparentSource = blob.type.includes('png') || blob.type.includes('webp') || blob.type.includes('gif');
+
+            if (isTransparentSource) {
+                // Clear canvas to ensure transparency
+                ctx.clearRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Export as WebP to preserve transparency while compressing.
+                // Quality 0.5 provides good size reduction for banners/portraits on mobile.
+                resolve(canvas.toDataURL('image/webp', 0.5));
+            } else {
+                // Opaque source (JPEG or others): Use JPEG for best compression
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Aggressive compression for sharing: JPEG at 40% quality
+                resolve(canvas.toDataURL('image/jpeg', 0.4));
+            }
         };
         img.onerror = (e) => {
              URL.revokeObjectURL(url);
