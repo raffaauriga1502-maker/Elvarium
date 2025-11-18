@@ -192,10 +192,8 @@ export async function getAllImagesAsDataUrls(
     });
 
     // Phase 2: Batch Parallel Execution
-    // Optimization takes CPU, raw reading is IO bound. 
-    // If optimize is FALSE (default now), we use a much larger batch for speed.
-    // Reading blobs and converting to Base64 is relatively fast on modern engines.
-    const BATCH_SIZE = optimize ? 5 : 150; 
+    // Decreased batch size to preventing memory hogging and freezing UI on large datasets
+    const BATCH_SIZE = 20; 
     let completed = 0;
     const total = keys.length;
 
@@ -229,11 +227,9 @@ export async function getAllImagesAsDataUrls(
         completed += batchKeys.length;
         if (onProgress) onProgress(Math.min(completed, total), total);
 
-        // Yield ONLY if optimization is running to prevent UI freeze. 
-        // For raw exports, blast through as fast as possible.
-        if (optimize) {
-            await new Promise(r => setTimeout(r, 10));
-        }
+        // CRITICAL: Yield to main thread every batch to let UI update. 
+        // Without this, the progress bar freezes and the app feels "stuck".
+        await new Promise(r => setTimeout(r, 0));
     }
 
     return results;

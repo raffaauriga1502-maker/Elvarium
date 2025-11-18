@@ -235,8 +235,11 @@ export const exportAllData = async (
 
     // 2. Get Images (with optional optimization)
     if (onProgress) onProgress("Preparing images...");
+    // Small delay to let UI render "Preparing..."
+    await new Promise(r => setTimeout(r, 50));
+    
     const images = await idbService.getAllImagesAsDataUrls(optimizeImagesForShare, (current, total) => {
-        if (onProgress) onProgress(`Processing images: ${current}/${total}`);
+        if (onProgress) onProgress(`Encoding images: ${current}/${total}`);
     });
 
     return {
@@ -297,17 +300,26 @@ export const generateShareableLink = async (
     // and significantly speeds up the "Gathering/Processing" phase by skipping re-encoding.
     const data = await exportAllData(false, onStatusUpdate);
     
-    if (onStatusUpdate) onStatusUpdate("Packing JSON...");
+    if (onStatusUpdate) onStatusUpdate("Finalizing package...");
+    // Delay to let the UI render the message before the heavy JSON.stringify freezes the thread
+    await new Promise(r => setTimeout(r, 100));
+
     const jsonString = JSON.stringify(data);
     const blob = new Blob([jsonString], { type: 'application/json' });
     
     const sizeMB = blob.size / (1024 * 1024);
-    if (onStatusUpdate) onStatusUpdate(`Uploading ${sizeMB.toFixed(2)} MB... (Depends on internet speed)`);
+    if (onStatusUpdate) onStatusUpdate(`Upload size: ${sizeMB.toFixed(2)} MB...`);
+    
+    // Allow status update to be visible
+    await new Promise(r => setTimeout(r, 500));
 
-    // STRICT GUARD: Mobile browsers often fail > 40MB on upload due to memory or timeouts.
-    if (sizeMB > 40) {
-         throw new Error(`World size (${sizeMB.toFixed(2)} MB) is too large to upload via link. Please use 'Download File' instead.`);
+    // BUMPED LIMIT: Mobile browsers often fail > 100MB on upload.
+    // File.io free limit is decent, but browser reliability drops with massive blobs.
+    if (sizeMB > 100) {
+         throw new Error(`World size (${sizeMB.toFixed(2)} MB) is too large to upload reliably via link. Please use 'Download File' instead.`);
     }
+    
+    if (onStatusUpdate) onStatusUpdate(`Uploading ${sizeMB.toFixed(2)} MB...`);
 
     // STRATEGY 1: dpaste (For small files < 0.5MB) - More reliable for text/json
     if (sizeMB < 0.5) {
