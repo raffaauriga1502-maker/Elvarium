@@ -440,11 +440,13 @@ function chunkString(str: string, length: number): string[] {
     return chunks;
 }
 
-// Increased timeout to 10 minutes to handle large files on slow mobile connections
-const UPLOAD_TIMEOUT = 600000; 
+// Helper: Fetch with timeout (Supports null timeout for unlimited)
+async function fetchWithTimeout(resource: RequestInfo, options: RequestInit = {}, timeout: number | null = 30000) {
+    if (timeout === null) {
+        // No timeout logic, use standard fetch
+        return fetch(resource, options);
+    }
 
-// Helper: Fetch with timeout
-async function fetchWithTimeout(resource: RequestInfo, options: RequestInit = {}, timeout = 30000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     try {
@@ -481,7 +483,7 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
         let textData = '';
 
         if (source === 'fileio') {
-            const response = await fetchWithTimeout(`https://file.io/${idOrIds}`, {}, UPLOAD_TIMEOUT);
+            const response = await fetchWithTimeout(`https://file.io/${idOrIds}`, {}, 60000); // 1 min read timeout is fine
              if (!response.ok) {
                  if (response.status === 404) {
                       throw new Error("The shared file has been deleted or already downloaded. File.io links are valid for 1 download only.");
@@ -533,10 +535,11 @@ const uploadToFileIo = async (payloadString: string): Promise<string> => {
      formData.append('maxDownloads', '1');
      formData.append('autoDelete', 'true');
      
+     // PASS NULL TO DISABLE TIMEOUT FOR UPLOAD
      const response = await fetchWithTimeout('https://file.io/', {
          method: 'POST',
          body: formData
-     }, UPLOAD_TIMEOUT); 
+     }, null); 
      
      if (!response.ok) {
          const errText = await response.text().catch(() => response.statusText);
@@ -561,7 +564,7 @@ const uploadToDpaste = async (content: string): Promise<string> => {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData,
-    }, UPLOAD_TIMEOUT);
+    }, 60000); // 60s timeout OK for text chunks
 
     if (response.ok) {
         const pasteUrl = await response.text();
@@ -606,17 +609,29 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
         indexedDB: indexedDBData,
     };
     
+    onProgress?.("Preparing payload...");
     const rawJsonString = JSON.stringify(dataToShare);
+    
+    const sizeInBytes = new Blob([rawJsonString]).size;
+    const sizeInMB = (sizeInBytes / (1024 * 1024)).toFixed(2);
+
+    // Show size to user
+    onProgress?.(`Payload size: ${sizeInMB} MB`);
+
+    // Fail fast if too large for reasonable free upload
+    if (sizeInBytes > 95 * 1024 * 1024) { // 95MB safety limit
+        throw new Error(`World data is too large (${sizeInMB} MB) for cloud sharing. Max limit is ~95MB. Please use 'Download File' to backup your data locally.`);
+    }
     
     // Handle No Compression (Safe Mode or Unsupported)
     if (forceNoCompression || !isCompressionSupported()) {
-        onProgress?.("Uploading (Safe Mode - No Compression)...");
+        onProgress?.(`Uploading ${sizeInMB} MB (Safe Mode)...`);
         
-        const payloadString = rawJsonString; // Upload pure JSON text for maximum compatibility
+        const payloadString = rawJsonString; 
 
         try {
              // Try dpaste first if small enough
-             if (new Blob([payloadString]).size < 250 * 1024) {
+             if (sizeInBytes < 250 * 1024) {
                  try {
                     const pasteId = await uploadToDpasteWithRetry(payloadString);
                     const baseUrl = window.location.origin + window.location.pathname;
@@ -643,7 +658,7 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
         }
     }
     
-    onProgress?.("Compressing...");
+    onProgress?.(`Compressing ${sizeInMB} MB...`);
     const compressedBytes = await compressData(rawJsonString);
     const base64Compressed = uint8ArrayToBase64(compressedBytes);
     
@@ -653,7 +668,7 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     };
     
     const payloadString = JSON.stringify(payloadObject);
-    const sizeInBytes = new Blob([payloadString]).size;
+    const compressedSize = new Blob([payloadString]).size;
     
     const baseUrl = window.location.origin + window.location.pathname;
     const url = new URL(baseUrl);
@@ -662,7 +677,7 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     const SINGLE_PASTE_LIMIT = 250 * 1024; 
     const MAX_CHUNKS = 200; 
 
-    if (sizeInBytes < SINGLE_PASTE_LIMIT) {
+    if (compressedSize < SINGLE_PASTE_LIMIT) {
         onProgress?.("Uploading...");
         try {
             const pasteId = await uploadToDpasteWithRetry(payloadString);
@@ -673,7 +688,7 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
         }
     }
 
-    if (sizeInBytes < SINGLE_PASTE_LIMIT * MAX_CHUNKS) {
+    if (compressedSize < SINGLE_PASTE_LIMIT * MAX_CHUNKS) {
         try {
             const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
             let uploadedCount = 0;
@@ -693,7 +708,8 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     }
 
     try {
-        onProgress?.("Uploading large file...");
+        const compMB = (compressedSize / (1024 * 1024)).toFixed(2);
+        onProgress?.(`Uploading large file (${compMB} MB)...`);
         const pasteId = await uploadToFileIo(payloadString);
         url.hash = `#fio=${pasteId}`;
         return { 
