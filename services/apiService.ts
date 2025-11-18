@@ -285,20 +285,18 @@ export const generateShareableLink = async (
     if (onStatusUpdate) onStatusUpdate("Gathering data...");
 
     // Use optimization unless safeMode (user requested "No Compression") is true
-    // safeMode = true => Optimize = false
-    // safeMode = false => Optimize = true (Default behavior to fix speed issues)
     const data = await exportAllData(!safeMode, onStatusUpdate);
     
     if (onStatusUpdate) onStatusUpdate("Packing data...");
     const jsonString = JSON.stringify(data);
     const blob = new Blob([jsonString], { type: 'application/json' });
     
-    // Size Check: > 95MB is too risky for free tiers usually
     const sizeMB = blob.size / (1024 * 1024);
     if (onStatusUpdate) onStatusUpdate(`Size: ${sizeMB.toFixed(2)} MB. Uploading...`);
 
-    if (sizeMB > 95) {
-         throw new Error(`World size (${sizeMB.toFixed(2)} MB) is too large for direct sharing. Use 'Download File' instead.`);
+    // STRICT GUARD: Mobile browsers often fail > 40MB on upload due to memory or timeouts.
+    if (sizeMB > 40) {
+         throw new Error(`World size (${sizeMB.toFixed(2)} MB) is too large to upload via link. Please use 'Download File' instead.`);
     }
 
     // We use file.io for robust large file handling. 
@@ -323,14 +321,18 @@ export const generateShareableLink = async (
             const shareUrl = `${window.location.origin}${window.location.pathname}#fio=${fileKey}`;
             return { 
                 url: shareUrl,
-                warning: "Note: This link may expire after one download (Standard file.io limit)."
+                warning: "Note: This link expires after 1 download or 1 week."
             };
         } else {
             throw new Error('Upload service returned failure.');
         }
     } catch (error: any) {
         console.error("Share upload failed:", error);
-        throw new Error(`Upload failed: ${error.message}`);
+        // Translate generic fetch errors to something more helpful for the user
+        if (error.message.includes('Failed to fetch')) {
+             throw new Error("Upload failed. Your network connection may be unstable, or the file is too large for your current connection.");
+        }
+        throw new Error(`${error.message}`);
     }
 };
 

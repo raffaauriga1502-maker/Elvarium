@@ -115,8 +115,8 @@ export async function checkImageExists(key: string): Promise<boolean> {
 
 // Helper to optimize images for export
 async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
-    // If blob is small (< 200KB), don't compress, just return as base64
-    if (blob.size < 200 * 1024) {
+    // If blob is small (< 150KB), don't compress, just return as base64
+    if (blob.size < 150 * 1024) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
@@ -125,7 +125,7 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
         });
     }
 
-    // Otherwise, resize and compress
+    // Otherwise, resize and compress aggressively for sharing
     return new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(blob);
@@ -133,8 +133,8 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
         img.onload = () => {
             URL.revokeObjectURL(url);
             const canvas = document.createElement('canvas');
-            // Aggressive Downscale: 1024px is plenty for mobile viewing of shared worlds
-            const MAX_SIZE = 1024; 
+            // Aggressive Downscale: 800px is sufficient for mobile/web viewing
+            const MAX_SIZE = 800; 
             let width = img.width;
             let height = img.height;
 
@@ -165,8 +165,8 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
             
             ctx.drawImage(img, 0, 0, width, height);
             
-            // Aggressive compression for sharing: JPEG at 50% quality
-            resolve(canvas.toDataURL('image/jpeg', 0.5));
+            // Aggressive compression for sharing: JPEG at 40% quality
+            resolve(canvas.toDataURL('image/jpeg', 0.4));
         };
         img.onerror = (e) => {
              URL.revokeObjectURL(url);
