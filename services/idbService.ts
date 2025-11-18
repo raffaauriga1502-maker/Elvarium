@@ -41,8 +41,6 @@ export async function setImage(key: string, blob: Blob): Promise<void> {
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(blob, key);
 
-    // Critical: We must wait for transaction.oncomplete, not just request.onsuccess
-    // to ensure data is actually flushed to disk before resolving.
     transaction.oncomplete = () => resolve();
     
     transaction.onerror = () => {
@@ -51,7 +49,6 @@ export async function setImage(key: string, blob: Blob): Promise<void> {
     };
     
     request.onerror = () => {
-       // Fallback log if request fails before transaction
        console.error('Request error saving to IndexedDB:', request.error);
     };
   });
@@ -60,7 +57,7 @@ export async function setImage(key: string, blob: Blob): Promise<void> {
 export async function setImagesBulk(images: Record<string, Blob>): Promise<void> {
   const dbInstance = await getDB();
   const entries = Object.entries(images);
-  const BATCH_SIZE = 5; // Process in small batches to prevent transaction timeouts on mobile
+  const BATCH_SIZE = 5; 
 
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
       const batch = entries.slice(i, i + BATCH_SIZE);
@@ -116,7 +113,68 @@ export async function checkImageExists(key: string): Promise<boolean> {
     });
 }
 
-export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> {
+// Helper to optimize images for export
+async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
+    // If blob is small (< 250KB), don't compress, just return as base64
+    if (blob.size < 250 * 1024) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    // Otherwise, resize and compress
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(blob);
+        img.src = url;
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const canvas = document.createElement('canvas');
+            const MAX_SIZE = 1280; 
+            let width = img.width;
+            let height = img.height;
+
+            // Calculate new dimensions
+            if (width > height) {
+                if (width > MAX_SIZE) {
+                    height *= MAX_SIZE / width;
+                    width = MAX_SIZE;
+                }
+            } else {
+                if (height > MAX_SIZE) {
+                    width *= MAX_SIZE / height;
+                    height = MAX_SIZE;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                 reject(new Error("Canvas context not available"));
+                 return;
+            }
+            
+            // Fill white background to handle transparent PNGs converting to JPEG
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Aggressive compression for sharing: JPEG at 60% quality
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = (e) => {
+             URL.revokeObjectURL(url);
+             reject(e);
+        }
+    });
+}
+
+export async function getAllImagesAsDataUrls(optimize: boolean = false): Promise<Record<string, string>> {
     const dbInstance = await getDB();
     const results: Record<string, string> = {};
 
@@ -131,33 +189,34 @@ export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> 
     });
 
     // Phase 2: Batch Parallel Execution
-    // Reading images one by one is too slow. Reading all at once crashes memory.
-    // We use batches of 5 concurrent reads.
     const BATCH_SIZE = 5;
     
     for (let i = 0; i < keys.length; i += BATCH_SIZE) {
         const batchKeys = keys.slice(i, i + BATCH_SIZE);
         
-        // Execute batch in parallel
         await Promise.all(batchKeys.map(async (key) => {
             try {
                 const blob = await getImage(key);
                 if (blob) {
-                    const base64 = await new Promise<string>((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result as string);
-                        reader.onerror = () => reject(new Error(`FileReader error for key ${key}`));
-                        reader.readAsDataURL(blob);
-                    });
-                    results[key] = base64;
+                    // Use optimization if requested, otherwise standard base64 conversion
+                    if (optimize) {
+                        results[key] = await optimizeBlobToDataUrl(blob);
+                    } else {
+                        const base64 = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result as string);
+                            reader.onerror = () => reject(new Error(`FileReader error for key ${key}`));
+                            reader.readAsDataURL(blob);
+                        });
+                        results[key] = base64;
+                    }
                 }
             } catch (e) {
-                // Skip erroneous images instead of failing the whole export
                 console.warn(`Failed to export image ${key}:`, e);
             }
         }));
         
-        // Yield to main thread every batch to keep UI responsive
+        // Yield to main thread
         await new Promise(r => setTimeout(r, 10));
     }
 

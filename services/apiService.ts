@@ -28,21 +28,6 @@ const removeItem = (key: string): Promise<void> => {
     return Promise.resolve();
 };
 
-const APP_KEYS = [
-    'elvarium_users',
-    'elvarium_current_user',
-    'elvarium_logo',
-    'elvarium_auth_banner',
-    'elvarium_synopsis',
-    'elvarium_synopsis_banner',
-    'elvarium_home_bg',
-    'elvarium_characters_bg',
-    'elvarium_characters_Main_Protagonist',
-    'elvarium_characters_Allies',
-    'elvarium_characters_Main_Antagonist',
-    'elvarium_characters_Enemies',
-];
-
 // --- User Management ---
 const USERS_KEY = 'elvarium_users';
 const CURRENT_USER_KEY = 'elvarium_current_user';
@@ -54,10 +39,90 @@ export const getCurrentUser = (): Promise<User | null> => getItem<User>(CURRENT_
 export const saveCurrentUser = (user: User): Promise<void> => setItem(CURRENT_USER_KEY, user);
 export const removeCurrentUser = (): Promise<void> => removeItem(CURRENT_USER_KEY);
 
+// --- Character Management ---
+export const getCharacters = (type: CharacterType): Promise<Character[]> => {
+    // Legacy support: remap 'Main Antagonist' to a predictable key if needed, 
+    // but primarily we store by type.
+    // We need to ensure we don't lose old keys.
+    const key = `elvarium_characters_${type.replace(/\s+/g, '_').toLowerCase()}`;
+    return getItem<Character[]>(key).then(chars => chars || []);
+};
+
+export const saveCharacters = (type: CharacterType, characters: Character[]): Promise<void> => {
+    const key = `elvarium_characters_${type.replace(/\s+/g, '_').toLowerCase()}`;
+    return setItem(key, characters);
+};
+
+export const removeCharacters = (type: CharacterType): Promise<void> => {
+    const key = `elvarium_characters_${type.replace(/\s+/g, '_').toLowerCase()}`;
+    return removeItem(key);
+};
+
+export const getAllCharactersBasicInfo = async (): Promise<{id: string, name: string}[]> => {
+    // Helper to scan all character lists for relationships
+    const types: CharacterType[] = ['Main Protagonist', 'Allies', 'Enemies', 'Main Antagonist' as any];
+    let allChars: {id: string, name: string}[] = [];
+    for (const t of types) {
+        const chars = await getCharacters(t);
+        if (chars) {
+            allChars = [...allChars, ...chars.map(c => ({ id: c.id, name: c.name }))];
+        }
+    }
+    return allChars;
+};
+
+// --- Other Data ---
+const SYNOPSIS_KEY = 'elvarium_synopsis';
+export const getSynopsis = (): Promise<string> => getItem<string>(SYNOPSIS_KEY).then(s => s || '');
+export const saveSynopsis = (synopsis: string): Promise<void> => setItem(SYNOPSIS_KEY, synopsis);
+
+const LOGO_KEY = 'elvarium_logo_image';
+export const getLogo = (): Promise<string | null> => getItem<string>(LOGO_KEY);
+export const saveLogo = (key: string): Promise<void> => setItem(LOGO_KEY, key);
+
+const AUTH_BANNER_KEY = 'elvarium_auth_banner';
+export const getAuthBanner = (): Promise<string | null> => getItem<string>(AUTH_BANNER_KEY);
+export const saveAuthBanner = (key: string): Promise<void> => setItem(AUTH_BANNER_KEY, key);
+
+const HOME_BG_KEY = 'elvarium_home_bg';
+export const getHomeBackground = (): Promise<string | null> => getItem<string>(HOME_BG_KEY);
+export const saveHomeBackground = (key: string): Promise<void> => setItem(HOME_BG_KEY, key);
+
+const CHARACTERS_BG_KEY = 'elvarium_characters_bg';
+export const getCharactersBackground = (): Promise<string | null> => getItem<string>(CHARACTERS_BG_KEY);
+export const saveCharactersBackground = (key: string): Promise<void> => setItem(CHARACTERS_BG_KEY, key);
+
+const SYNOPSIS_BANNER_KEY = 'elvarium_synopsis_banner';
+export const getSynopsisBanner = (): Promise<string | null> => getItem<string>(SYNOPSIS_BANNER_KEY);
+export const saveSynopsisBanner = (key: string): Promise<void> => setItem(SYNOPSIS_BANNER_KEY, key);
+
+// Helper to get all unique Arcs from characters
+export const getAllArcs = async (): Promise<string[]> => {
+    const types: CharacterType[] = ['Main Protagonist', 'Allies', 'Enemies'];
+    const arcSet = new Set<string>();
+    
+    for (const type of types) {
+        const chars = await getCharacters(type);
+        chars.forEach(char => {
+            if (char.arcs) {
+                char.arcs.forEach(arc => arcSet.add(arc));
+            }
+        });
+    }
+    return Array.from(arcSet).sort();
+};
+
 
 // --- Image Utility ---
-const imageFileToBlob = (file: File, maxWidth: number = 1600, maxHeight: number = 1600, quality: number = 0.7): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
+export const processAndStoreImage = async (file: File, options: { maxWidth: number; maxHeight: number; quality?: number }): Promise<string> => {
+    // Enforce stricter caps for mobile performance
+    const safeMaxWidth = Math.min(options.maxWidth, 1280);
+    const safeMaxHeight = Math.min(options.maxHeight, 1280);
+    
+    const requestedQuality = options.quality !== undefined ? options.quality : 0.6;
+    const safeQuality = Math.min(requestedQuality, 0.8);
+    
+    const blob = await new Promise<Blob>((resolve, reject) => {
         if (!file.type.startsWith('image/')) return reject(new Error('File is not an image.'));
 
         const reader = new FileReader();
@@ -68,19 +133,18 @@ const imageFileToBlob = (file: File, maxWidth: number = 1600, maxHeight: number 
             const img = new Image();
             img.src = event.target.result as string;
             img.onload = () => {
-                // Enforce strict resizing to save memory and reduce upload size.
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
 
                 if (width > height) {
-                    if (width > maxWidth) {
-                        height = Math.round(height * (maxWidth / width));
-                        width = maxWidth;
+                    if (width > safeMaxWidth) {
+                        height = Math.round(height * (safeMaxWidth / width));
+                        width = safeMaxWidth;
                     }
                 } else {
-                    if (height > maxHeight) {
-                        width = Math.round(width * (maxHeight / height));
-                        height = maxHeight;
+                    if (height > safeMaxHeight) {
+                        width = Math.round(width * (safeMaxHeight / height));
+                        height = safeMaxHeight;
                     }
                 }
                 
@@ -92,652 +156,201 @@ const imageFileToBlob = (file: File, maxWidth: number = 1600, maxHeight: number 
                 ctx.clearRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                const transparentMimeTypes = ['image/png', 'image/gif', 'image/webp'];
-                // Force JPEG for large images unless transparency is likely needed, to save space.
-                const outputMimeType = (transparentMimeTypes.includes(file.type) && file.size < 1.5 * 1024 * 1024) ? 'image/png' : 'image/jpeg';
-                
-                if (outputMimeType === 'image/png') {
-                     canvas.toBlob((blob) => {
-                        if (blob) {
-                            resolve(blob);
-                        } else {
-                            reject(new Error('Canvas to Blob conversion for PNG failed'));
-                        }
+                // Force JPEG for anything substantial to save space/memory
+                // Only keep PNG if it's very small (likely an icon)
+                const usePng = file.type === 'image/png' && file.size < 200 * 1024;
+
+                if (usePng) {
+                     canvas.toBlob((b) => {
+                        if (b) resolve(b);
+                        else reject(new Error('Canvas to Blob conversion failed'));
                     }, 'image/png');
-                } else { // It's a JPEG
-                    canvas.toBlob((blob) => {
-                        if (blob) {
-                            resolve(blob);
-                        } else {
-                            reject(new Error('Canvas to Blob conversion failed'));
-                        }
-                    }, 'image/jpeg', quality);
+                } else { 
+                    canvas.toBlob((b) => {
+                        if (b) resolve(b);
+                        else reject(new Error('Canvas to Blob conversion failed'));
+                    }, 'image/jpeg', safeQuality);
                 }
             };
             img.onerror = (error) => reject(error);
         };
         reader.onerror = (error) => reject(error);
     });
-};
 
-
-export const processAndStoreImage = async (file: File, options: { maxWidth: number; maxHeight: number; quality?: number }): Promise<string> => {
-    // Enforce a hard cap of 1600px to be safe for sharing, regardless of requested options.
-    // 1920px is often too big for quick mobile uploads.
-    const safeMaxWidth = Math.min(options.maxWidth, 1600);
-    const safeMaxHeight = Math.min(options.maxHeight, 1600);
-    
-    // Ensure quality doesn't exceed 0.8 generally, and default to 0.7 if not provided.
-    // This prevents accidental huge files.
-    const requestedQuality = options.quality !== undefined ? options.quality : 0.7;
-    const safeQuality = Math.min(requestedQuality, 0.8);
-    
-    const blob = await imageFileToBlob(file, safeMaxWidth, safeMaxHeight, safeQuality);
-    const key = `idb://${crypto.randomUUID()}`;
+    const key = `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     await idbService.setImage(key, blob);
     return key;
 };
 
-// A cache to avoid creating multiple object URLs for the same blob
-const urlCache = new Map<string, string>();
-
-export const resolveImageUrl = async (key: string | null | undefined, retry = true): Promise<string | null> => {
-    if (!key) return null;
-    if (urlCache.has(key)) return urlCache.get(key)!;
-
-    if (key.startsWith('idb://')) {
-        try {
-            let blob = await idbService.getImage(key);
-            
-            // Aggressive Retry: IDB might be slow on cold boot or after heavy write.
-            if (!blob && retry) {
-                const delays = [200, 500, 1000, 2000, 3000];
-                for (const delay of delays) {
-                    await new Promise(r => setTimeout(r, delay));
-                    blob = await idbService.getImage(key);
-                    if (blob) break;
-                }
-            }
-
-            if (blob) {
-                const objectUrl = URL.createObjectURL(blob);
-                urlCache.set(key, objectUrl);
-                return objectUrl;
-            } else {
-                console.warn(`Image blob not found for key: ${key} after multiple retries`);
-            }
-        } catch (e) {
-            console.warn(`Failed to resolve image for key ${key}`, e);
-            return null;
-        }
-    }
-    // For backwards compatibility with old base64 strings
-    if (key.startsWith('data:image/')) {
-        return key;
-    }
-    return null;
+export const resolveImageUrl = async (imageKey: string): Promise<string | null> => {
+    if (!imageKey) return null;
+    const blob = await idbService.getImage(imageKey);
+    if (!blob) return null;
+    return URL.createObjectURL(blob);
 };
 
 export const verifyImageExists = async (key: string): Promise<boolean> => {
-    if (key.startsWith('idb://')) {
-        return await idbService.checkImageExists(key);
-    }
-    return true; 
+    return idbService.checkImageExists(key);
 };
 
 
-// --- Customization ---
-const LOGO_KEY = 'elvarium_logo';
-const AUTH_BANNER_KEY = 'elvarium_auth_banner';
-const HOME_BG_KEY = 'elvarium_home_bg';
-const CHARACTERS_BG_KEY = 'elvarium_characters_bg';
+// --- Import/Export ---
 
-export const getLogo = (): Promise<string | null> => getItem<string>(LOGO_KEY);
-export const saveLogo = (key: string): Promise<void> => setItem(LOGO_KEY, key);
+export interface BackupData {
+    localStorage: Record<string, any>;
+    images: Record<string, string>; // base64
+}
 
-export const getAuthBanner = (): Promise<string | null> => getItem<string>(AUTH_BANNER_KEY);
-export const saveAuthBanner = (key: string): Promise<void> => setItem(AUTH_BANNER_KEY, key);
-
-export const getHomeBackground = (): Promise<string | null> => getItem<string>(HOME_BG_KEY);
-export const saveHomeBackground = (key: string): Promise<void> => setItem(HOME_BG_KEY, key);
-
-export const getCharactersBackground = (): Promise<string | null> => getItem<string>(CHARACTERS_BG_KEY);
-export const saveCharactersBackground = (key: string): Promise<void> => setItem(CHARACTERS_BG_KEY, key);
-
-// --- Synopsis ---
-const SYNOPSIS_KEY = 'elvarium_synopsis';
-const SYNOPSIS_BANNER_KEY = 'elvarium_synopsis_banner';
-
-export const getSynopsis = (): Promise<string | null> => getItem<string>(SYNOPSIS_KEY);
-export const saveSynopsis = (synopsis: string): Promise<void> => setItem(SYNOPSIS_KEY, synopsis);
-
-export const getSynopsisBanner = (): Promise<string | null> => getItem<string>(SYNOPSIS_BANNER_KEY);
-export const saveSynopsisBanner = (key: string): Promise<void> => setItem(SYNOPSIS_BANNER_KEY, key);
-
-// --- Characters ---
-const getCharacterKey = (characterType: CharacterType) => `elvarium_characters_${characterType.replace(/\s+/g, '_')}`;
-
-export const getCharacters = (characterType: CharacterType): Promise<Character[] | null> => {
-    return getItem<Character[]>(getCharacterKey(characterType));
-};
-
-export const saveCharacters = (characterType: CharacterType, characters: Character[]): Promise<void> => {
-    return setItem(getCharacterKey(characterType), characters);
-};
-
-export const removeCharacters = (characterType: CharacterType): Promise<void> => {
-    return removeItem(getCharacterKey(characterType));
-};
-
-export const getAllCharactersBasicInfo = async (): Promise<{id: string, name: string, type: CharacterType}[]> => {
-    const types: CharacterType[] = ['Main Protagonist', 'Allies', 'Main Antagonist', 'Enemies'];
-    let all: {id: string, name: string, type: CharacterType}[] = [];
-    for (const t of types) {
-        const chars = await getCharacters(t);
-        if (chars) {
-            all = [...all, ...chars.map(c => ({id: c.id, name: c.name, type: t}))];
-        }
-    }
-    return all.sort((a, b) => a.name.localeCompare(b.name));
-};
-
-
-export const getAllArcs = async (): Promise<string[]> => {
-    const allArcs = new Set<string>();
-    const characterTypes: CharacterType[] = ['Main Protagonist', 'Allies', 'Main Antagonist', 'Enemies']; 
-
-    for (const type of characterTypes) {
-        const characters = await getCharacters(type);
-        if (characters) {
-            for (const char of characters) {
-                if (char.portraits) {
-                    char.portraits.forEach(p => {
-                        p.outfits.forEach(o => allArcs.add(o.arcName));
-                    });
+// DYNAMIC EXPORT: Scans all keys to ensure nothing is missed
+export const exportAllData = async (optimizeImagesForShare: boolean = false): Promise<BackupData> => {
+    const localStorageData: Record<string, any> = {};
+    
+    // 1. Dynamic Scan of LocalStorage
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        // Only grab keys that belong to this app
+        if (key && key.startsWith('elvarium_')) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                    localStorageData[key] = JSON.parse(raw);
                 }
-                if (char.arcs) {
-                    char.arcs.forEach(arc => allArcs.add(arc));
-                }
-                const legacyChar = char as any;
-                if (legacyChar.outfits) {
-                    legacyChar.outfits.forEach((o: any) => o.arcName && allArcs.add(o.arcName));
-                }
-                if (legacyChar.appearances) {
-                    legacyChar.appearances.forEach((a: any) => a.arcName && allArcs.add(a.arcName));
-                }
+            } catch (e) {
+                console.warn(`Skipping corrupted key ${key}`, e);
             }
         }
     }
-    return Array.from(allArcs).filter(Boolean).sort();
-};
 
+    // 2. Get Images (with optional optimization)
+    // This is where we fix the "Upload too slow" issue by compressing images specifically for sharing
+    const images = await idbService.getAllImagesAsDataUrls(optimizeImagesForShare);
 
-// --- Export / Import / Share ---
-
-const dataUrlToBlob = (dataUrl: string): Blob => {
-    try {
-        const parts = dataUrl.split(',');
-        if (parts.length < 2) throw new Error("Invalid data URL");
-        const mimeMatch = parts[0].match(/:(.*?);/);
-        if (!mimeMatch || mimeMatch.length < 2) throw new Error("Could not determine mime type");
-        const mimeType = mimeMatch[1];
-        const b64 = atob(parts[1]);
-        let n = b64.length;
-        const u8arr = new Uint8Array(n);
-        while(n--){
-            u8arr[n] = b64.charCodeAt(n);
-        }
-        return new Blob([u8arr], {type: mimeType});
-    } catch (e) {
-        console.error("Error converting DataURL to Blob:", e);
-        throw e;
-    }
-}
-
-export const exportAllData = async (includeImages = true): Promise<object> => {
-    const localStorageData: { [key: string]: any } = {};
-    for (const key of APP_KEYS) {
-        const data = await getItem(key);
-        if (data !== null) {
-            localStorageData[key] = data;
-        }
-    }
-
-    if (!includeImages) {
-        return {
-            localStorage: localStorageData,
-        };
-    }
-
-    const indexedDBData = await idbService.getAllImagesAsDataUrls();
-    
     return {
         localStorage: localStorageData,
-        indexedDB: indexedDBData,
+        images,
     };
 };
 
-export const importAllData = async (data: any): Promise<void> => {
-    if (!data || !data.localStorage) {
-        throw new Error("Invalid import file format.");
+export const importAllData = async (data: BackupData): Promise<void> => {
+    // Clear existing
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('elvarium_')) {
+            keysToRemove.push(key);
+        }
     }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    // Restore LocalStorage
+    Object.entries(data.localStorage).forEach(([key, value]) => {
+        localStorage.setItem(key, JSON.stringify(value));
+    });
 
-    // Clear existing data
-    for (const key of APP_KEYS) {
-        await removeItem(key);
-    }
+    // Restore Images
     await idbService.clearImages();
-    urlCache.clear();
-
-    // Import localStorage data
-    for (const key in data.localStorage) {
-        if (Object.prototype.hasOwnProperty.call(data.localStorage, key)) {
-            await setItem(key, data.localStorage[key]);
+    
+    const blobMap: Record<string, Blob> = {};
+    
+    // Process base64 back to Blobs in memory first
+    for (const [key, base64] of Object.entries(data.images)) {
+        try {
+            const res = await fetch(base64);
+            const blob = await res.blob();
+            blobMap[key] = blob;
+        } catch (e) {
+            console.error(`Failed to convert image ${key} back to blob`, e);
         }
     }
     
-    // Import IndexedDB data using Memory-Safe Streaming Batch
-    if (data.indexedDB) {
-        const keys = Object.keys(data.indexedDB);
-        const BATCH_SIZE = 5; 
-        
-        for (let i = 0; i < keys.length; i += BATCH_SIZE) {
-            const batchKeys = keys.slice(i, i + BATCH_SIZE);
-            const batchImages: Record<string, Blob> = {};
-            
-            for (const key of batchKeys) {
-                try {
-                    const dataUrl = data.indexedDB[key];
-                    if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
-                        const blob = dataUrlToBlob(dataUrl);
-                        batchImages[key] = blob;
-                    }
-                } catch (e) {
-                    console.warn(`Skipping invalid image data for key ${key}`, e);
-                }
-            }
-            
-            if (Object.keys(batchImages).length > 0) {
-                await idbService.setImagesBulk(batchImages);
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-    }
-
-    idbService.closeConnection();
+    // Bulk save to IDB
+    await idbService.setImagesBulk(blobMap);
 };
-
-// --- Compression Helpers ---
-
-function isCompressionSupported() {
-    return typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
-}
-
-async function compressData(jsonString: string): Promise<Uint8Array> {
-    if (!isCompressionSupported()) {
-        const encoder = new TextEncoder();
-        return encoder.encode(jsonString);
-    }
-
-    const stream = new Blob([jsonString]).stream();
-    const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
-    const reader = compressedStream.getReader();
-    const chunks = [];
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-    }
-    const blob = new Blob(chunks);
-    const buffer = await blob.arrayBuffer();
-    return new Uint8Array(buffer);
-}
-
-async function decompressData(compressed: Uint8Array): Promise<string> {
-    if (!isCompressionSupported()) {
-        const decoder = new TextDecoder();
-        return decoder.decode(compressed);
-    }
-
-    const stream = new Blob([compressed]).stream();
-    const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
-    const reader = new Response(decompressedStream).body!.getReader();
-    const chunks = [];
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-    }
-    const blob = new Blob(chunks);
-    return blob.text();
-}
-
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-    let binary = '';
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-}
-
-function base64ToUint8Array(base64: string): Uint8Array {
-    const binary_string = window.atob(base64);
-    const len = binary_string.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binary_string.charCodeAt(i);
-    }
-    return bytes;
-}
 
 // --- Sharing Logic ---
 
-export type ShareSource = 'dpaste' | 'fileio' | 'dpaste-chunked';
+export type ShareSource = 'dpaste' | 'dpaste-chunked' | 'fileio';
 
-function chunkString(str: string, length: number): string[] {
-    const size = str.length;
-    const numChunks = Math.ceil(size / length);
-    const chunks = new Array(numChunks);
-    for (let i = 0, o = 0; i < numChunks; ++i, o += length) {
-        chunks[i] = str.substring(o, o + length);
+export const generateShareableLink = async (
+    onStatusUpdate?: (status: string) => void, 
+    safeMode: boolean = false
+): Promise<{ url: string; warning?: string }> => {
+    if (onStatusUpdate) onStatusUpdate("Gathering data...");
+
+    // Use optimization unless safeMode (user requested "No Compression") is true
+    // safeMode = true => Optimize = false
+    // safeMode = false => Optimize = true (Default behavior to fix speed issues)
+    const data = await exportAllData(!safeMode);
+    
+    const jsonString = JSON.stringify(data);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    
+    // Size Check: > 95MB is too risky for free tiers usually
+    const sizeMB = blob.size / (1024 * 1024);
+    if (onStatusUpdate) onStatusUpdate(`Size: ${sizeMB.toFixed(2)} MB. Uploading...`);
+
+    if (sizeMB > 95) {
+         throw new Error(`World size (${sizeMB.toFixed(2)} MB) is too large for direct sharing. Use 'Download File' instead.`);
     }
-    return chunks;
-}
 
-// Helper: Fetch with timeout (Supports null timeout for unlimited)
-async function fetchWithTimeout(resource: RequestInfo, options: RequestInit = {}, timeout: number | null = 30000) {
-    if (timeout === null) {
-        // No timeout logic, use standard fetch
-        return fetch(resource, options);
-    }
-
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    // We use file.io for robust large file handling. 
+    // dpaste has strict limits (often < 1MB or 10MB depending on server config), 
+    // making it unsuitable for worlds with images.
     try {
-        const response = await fetch(resource, {
-            ...options,
-            signal: controller.signal
+        const formData = new FormData();
+        formData.append('file', blob, 'elvarium_world.json');
+        
+        // 14 days expiry (14d) - file.io deletes after 1 download by default, 
+        // but let's try to set a duration if the API supports it, 
+        // though standard file.io free tier is "burn after read".
+        // Alternative: If we want persistent, we need a different host, 
+        // but file.io is the most standard "no-auth" file host.
+        
+        const response = await fetch('https://file.io/?expires=1w', {
+            method: 'POST',
+            body: formData
         });
-        clearTimeout(id);
-        return response;
-    } catch (error: any) {
-        clearTimeout(id);
-        if (error.name === 'AbortError') {
-             throw new Error(`Request timed out after ${timeout/1000} seconds. Your connection may be too slow.`);
-        }
-        throw error;
-    }
-}
 
-async function processInBatches<T, R>(items: T[], batchSize: number, processItem: (item: T) => Promise<R>): Promise<R[]> {
-    const results: R[] = [];
-    for (let i = 0; i < items.length; i += batchSize) {
-        const batch = items.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch.map(processItem));
-        results.push(...batchResults);
-        if (i + batchSize < items.length) {
-            await new Promise(r => setTimeout(r, 200));
-        }
-    }
-    return results;
-}
-
-export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource = 'dpaste'): Promise<any> => {
-    try {
-        let textData = '';
-
-        if (source === 'fileio') {
-            const response = await fetchWithTimeout(`https://file.io/${idOrIds}`, {}, 60000); // 1 min read timeout is fine
-             if (!response.ok) {
-                 if (response.status === 404) {
-                      throw new Error("The shared file has been deleted or already downloaded. File.io links are valid for 1 download only.");
-                 }
-                throw new Error(`Could not fetch shared world data from file.io. Status: ${response.statusText}`);
-            }
-            textData = await response.text();
-        } else if (source === 'dpaste-chunked') {
-            const ids = idOrIds.split(',');
-            const chunks = await processInBatches(ids, 3, async (id) => {
-                 const response = await fetchWithTimeout(`https://dpaste.com/${id}.txt`);
-                 if (!response.ok) throw new Error(`Failed to fetch chunk ${id}`);
-                 return response.text();
-            });
-            textData = chunks.join('');
-        } else {
-            const response = await fetchWithTimeout(`https://dpaste.com/${idOrIds}.txt`);
-            if (!response.ok) {
-                throw new Error(`Could not fetch shared world data. Status: ${response.statusText}`);
-            }
-            textData = await response.text();
-        }
-        
-        try {
-            const parsed = JSON.parse(textData);
-            if (parsed && parsed.compressed && parsed.data) {
-                const compressedBytes = base64ToUint8Array(parsed.data);
-                const decompressedJson = await decompressData(compressedBytes);
-                return JSON.parse(decompressedJson);
-            }
-            return parsed;
-        } catch (jsonError) {
-            console.error("Error parsing shared data JSON:", jsonError);
-            throw new Error("Shared data is invalid or corrupted.");
+        if (!response.ok) {
+            throw new Error(`Upload failed: ${response.statusText}`);
         }
 
-    } catch (error: any) {
-        console.error("Failed to fetch shared world data:", error);
-        throw new Error(error.message || "The shared world data could not be retrieved.");
-    }
-};
-
-const uploadToFileIo = async (payloadString: string): Promise<string> => {
-     // Use text/plain to avoid strict JSON validation issues on file.io side sometimes
-     const blob = new Blob([payloadString], { type: 'text/plain' });
-     const formData = new FormData();
-     formData.append('file', blob, 'elvarium_world.json');
-     formData.append('expires', '1w'); // Explicitly request 1 week
-     formData.append('maxDownloads', '1');
-     formData.append('autoDelete', 'true');
-     
-     // PASS NULL TO DISABLE TIMEOUT FOR UPLOAD
-     const response = await fetchWithTimeout('https://file.io/', {
-         method: 'POST',
-         body: formData
-     }, null); 
-     
-     if (!response.ok) {
-         const errText = await response.text().catch(() => response.statusText);
-         throw new Error(`File.io upload failed (${response.status}): ${errText}`);
-     }
-     const json = await response.json();
-     if (!json.success) throw new Error('File.io reported failure: ' + (json.message || 'Unknown'));
-     
-     return json.key;
-}
-
-const uploadToDpaste = async (content: string): Promise<string> => {
-    const formData = new URLSearchParams();
-    formData.append('content', content);
-    formData.append('expiry_days', '7');
-    formData.append('syntax', 'json');
-    formData.append('title', 'Elvarium Shared World Chunk');
-    
-    const response = await fetchWithTimeout('https://dpaste.com/api/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData,
-    }, 60000); // 60s timeout OK for text chunks
-
-    if (response.ok) {
-        const pasteUrl = await response.text();
-        const id = pasteUrl.split('/').pop();
-        if (id) return id.trim();
-    }
-    throw new Error("Failed to upload to dpaste");
-}
-
-const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<string> => {
-    for (let i = 0; i < retries; i++) {
-        try {
-            return await uploadToDpaste(content);
-        } catch (e) {
-            if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, 1000));
-        }
-    }
-    throw new Error("Unreachable");
-}
-
-
-export const generateShareableLink = async (onProgress?: (message: string) => void, forceNoCompression = false): Promise<{url: string, warning?: string}> => {
-    const SHAREABLE_LOCAL_STORAGE_KEYS = APP_KEYS.filter(
-        key => key !== 'elvarium_users' && key !== 'elvarium_current_user'
-    );
-    
-    onProgress?.("Reading data...");
-    const localStorageData: { [key: string]: any } = {};
-    for (const key of SHAREABLE_LOCAL_STORAGE_KEYS) {
-        const data = await getItem(key);
-        if (data !== null) {
-            localStorageData[key] = data;
-        }
-    }
-    
-    onProgress?.("Reading images (this may take a moment)...");
-    const indexedDBData = await idbService.getAllImagesAsDataUrls();
-    
-    const dataToShare = {
-        localStorage: localStorageData,
-        indexedDB: indexedDBData,
-    };
-    
-    onProgress?.("Preparing payload...");
-    const rawJsonString = JSON.stringify(dataToShare);
-    
-    const sizeInBytes = new Blob([rawJsonString]).size;
-    const sizeInMB = (sizeInBytes / (1024 * 1024)).toFixed(2);
-
-    // Show size to user
-    onProgress?.(`Payload size: ${sizeInMB} MB`);
-
-    // Fail fast if too large for reasonable free upload
-    if (sizeInBytes > 95 * 1024 * 1024) { // 95MB safety limit
-        throw new Error(`World data is too large (${sizeInMB} MB) for cloud sharing. Max limit is ~95MB. Please use 'Download File' to backup your data locally.`);
-    }
-    
-    // Handle No Compression (Safe Mode or Unsupported)
-    if (forceNoCompression || !isCompressionSupported()) {
-        onProgress?.(`Uploading ${sizeInMB} MB (Safe Mode)...`);
-        
-        const payloadString = rawJsonString; 
-
-        try {
-             // Try dpaste first if small enough
-             if (sizeInBytes < 250 * 1024) {
-                 try {
-                    const pasteId = await uploadToDpasteWithRetry(payloadString);
-                    const baseUrl = window.location.origin + window.location.pathname;
-                    return { url: `${baseUrl}#id=${pasteId}` };
-                 } catch (dpasteError) {
-                     console.warn("Dpaste failed in safe mode, falling back to file.io", dpasteError);
-                     // Fallthrough to file.io
-                 }
-             }
-             
-             // Go to file.io for reliability or if dpaste failed
-             const pasteId = await uploadToFileIo(payloadString);
-             const baseUrl = window.location.origin + window.location.pathname;
-             return { 
-                 url: `${baseUrl}#fio=${pasteId}`, 
-                 warning: "Safe Mode used. File is large. Link valid for ONE download only via file.io." 
-             };
-             
-        } catch (e: any) {
-            console.error("Safe mode upload failed", e);
-            let msg = e.message || "Unknown error";
-            if (msg.includes("Failed to fetch")) msg = "Network error or request blocked (Check connection/AdBlock)";
-            throw new Error(`Upload failed: ${msg}. If this persists, use 'Download File'.`);
-        }
-    }
-    
-    onProgress?.(`Compressing ${sizeInMB} MB...`);
-    const compressedBytes = await compressData(rawJsonString);
-    const base64Compressed = uint8ArrayToBase64(compressedBytes);
-    
-    const payloadObject = {
-        compressed: true,
-        data: base64Compressed
-    };
-    
-    const payloadString = JSON.stringify(payloadObject);
-    const compressedSize = new Blob([payloadString]).size;
-    
-    const baseUrl = window.location.origin + window.location.pathname;
-    const url = new URL(baseUrl);
-    url.search = '';
-
-    const SINGLE_PASTE_LIMIT = 250 * 1024; 
-    const MAX_CHUNKS = 200; 
-
-    if (compressedSize < SINGLE_PASTE_LIMIT) {
-        onProgress?.("Uploading...");
-        try {
-            const pasteId = await uploadToDpasteWithRetry(payloadString);
-            url.hash = `#id=${pasteId}`;
-            return { url: url.href };
-        } catch (e) {
-            console.warn("dpaste single failed, falling back to chunks", e);
-        }
-    }
-
-    if (compressedSize < SINGLE_PASTE_LIMIT * MAX_CHUNKS) {
-        try {
-            const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
-            let uploadedCount = 0;
-            const ids = await processInBatches(chunks, 1, async (chunk) => {
-                await new Promise(r => setTimeout(r, 500));
-                const res = await uploadToDpasteWithRetry(chunk);
-                uploadedCount++;
-                onProgress?.(`Uploading part ${uploadedCount}/${chunks.length}...`);
-                return res;
-            });
-            
-            url.hash = `#chunks=${ids.join(',')}`;
-            return { url: url.href };
-        } catch (e) {
-             console.warn("Chunking failed, falling back to file.io", e);
-        }
-    }
-
-    try {
-        const compMB = (compressedSize / (1024 * 1024)).toFixed(2);
-        onProgress?.(`Uploading large file (${compMB} MB)...`);
-        const pasteId = await uploadToFileIo(payloadString);
-        url.hash = `#fio=${pasteId}`;
-        return { 
-            url: url.href, 
-            warning: "Large world file. Link valid for ONE download only via file.io." 
-        };
-    } catch (error: any) {
-        console.error("All sharing services failed:", error);
-        throw new Error(`Sharing failed: ${error.message}`);
-    }
-};
-
-
-export const imageFileToBase64 = (file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.8): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        imageFileToBlob(file, maxWidth, maxHeight, quality).then(blob => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                resolve(reader.result as string);
+        const result = await response.json();
+        if (result.success) {
+            const fileKey = result.key; // file.io key
+            // Construct app link
+            const shareUrl = `${window.location.origin}${window.location.pathname}#fio=${fileKey}`;
+            return { 
+                url: shareUrl,
+                warning: "Note: This link may expire after one download (Standard file.io limit)."
             };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        }).catch(reject);
-    });
+        } else {
+            throw new Error('Upload service returned failure.');
+        }
+    } catch (error: any) {
+        console.error("Share upload failed:", error);
+        throw new Error(`Upload failed: ${error.message}`);
+    }
+};
+
+// Fetch logic for the import modal
+export const fetchSharedWorldData = async (id: string, source: ShareSource): Promise<BackupData> => {
+    if (source === 'fileio') {
+        const response = await fetch(`https://file.io/${id}`);
+        if (!response.ok) {
+            if (response.status === 404) throw new Error("File not found or already deleted.");
+            throw new Error("Failed to download shared file.");
+        }
+        return await response.json();
+    } 
+    
+    // Legacy/Fallback dpaste logic (if used by older links)
+    if (source === 'dpaste') {
+         const response = await fetch(`https://dpaste.com/${id}.txt`);
+         if (!response.ok) throw new Error("Failed to fetch from dpaste.");
+         const text = await response.text();
+         return JSON.parse(text);
+    }
+
+    throw new Error("Unknown share source.");
 };
