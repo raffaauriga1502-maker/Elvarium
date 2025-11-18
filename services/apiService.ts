@@ -321,8 +321,10 @@ export const generateShareableLink = async (
     
     if (onStatusUpdate) onStatusUpdate(`Uploading ${sizeMB.toFixed(2)} MB...`);
 
-    // STRATEGY 1: dpaste (For small files < 0.5MB) - More reliable for text/json
-    if (sizeMB < 0.5) {
+    // STRATEGY 1: dpaste
+    // User requested up to 100MB to attempt text share first
+    // Note: dpaste may reject extremely large bodies, which will fall back to file.io
+    if (sizeMB < 100) {
         try {
             const text = await blob.text();
             const formData = new FormData();

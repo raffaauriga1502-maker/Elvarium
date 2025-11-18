@@ -192,8 +192,8 @@ export async function getAllImagesAsDataUrls(
     });
 
     // Phase 2: Batch Parallel Execution
-    // Decreased batch size to preventing memory hogging and freezing UI on large datasets
-    const BATCH_SIZE = 20; 
+    // Increased batch size to 50 for speed, modern browsers handle this well.
+    const BATCH_SIZE = 50; 
     let completed = 0;
     const total = keys.length;
 
@@ -227,9 +227,10 @@ export async function getAllImagesAsDataUrls(
         completed += batchKeys.length;
         if (onProgress) onProgress(Math.min(completed, total), total);
 
-        // CRITICAL: Yield to main thread every batch to let UI update. 
-        // Without this, the progress bar freezes and the app feels "stuck".
-        await new Promise(r => setTimeout(r, 0));
+        // Yield less frequently (every 4 batches = 200 items) to reduce event loop overhead
+        if (i % (BATCH_SIZE * 4) === 0) {
+            await new Promise(r => setTimeout(r, 0));
+        }
     }
 
     return results;
