@@ -93,6 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
   const [isCharactersExpanded, setCharactersExpanded] = useState(true);
   const [shareStatus, setShareStatus] = useState<'idle' | 'generating' | 'copied' | 'error'>('idle');
   const [progressMessage, setProgressMessage] = useState('');
+  const [useSafeMode, setUseSafeMode] = useState(false);
   const { t } = useI18n();
 
   const logoFileInputRef = useRef<HTMLInputElement>(null);
@@ -161,7 +162,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
     try {
       const result = await apiService.generateShareableLink((status) => {
           setProgressMessage(status);
-      });
+      }, useSafeMode); // Pass safe mode flag
       
       try {
           // Attempt automatic copy
@@ -308,6 +309,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
                     {shareStatus === 'copied' && t('sidebar.copied')}
                     {shareStatus === 'error' && t('sidebar.error')}
                 </button>
+                <label className="flex items-center gap-2 px-2 mt-1 mb-2 cursor-pointer group">
+                    <input 
+                        type="checkbox" 
+                        checked={useSafeMode} 
+                        onChange={(e) => setUseSafeMode(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-600 text-accent focus:ring-accent bg-primary"
+                    />
+                    <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors select-none">
+                        Safe Mode (No Compression)
+                    </span>
+                </label>
                 <button onClick={handleExportFile} className="w-full text-left text-sm p-2 rounded-md text-text-primary hover:bg-secondary hover:text-white transition-colors" aria-label={t('sidebar.aria.downloadData')}>{t('sidebar.downloadFile')}</button>
                 <input type="file" ref={importFileInputRef} onChange={handleImportFileChange} accept=".json" className="hidden"/>
                 <button onClick={() => importFileInputRef.current?.click()} className="w-full text-left text-sm p-2 rounded-md text-text-primary hover:bg-secondary hover:text-white transition-colors" aria-label={t('sidebar.aria.importData')}>{t('sidebar.uploadFile')}</button>

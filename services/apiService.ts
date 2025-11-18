@@ -56,7 +56,7 @@ export const removeCurrentUser = (): Promise<void> => removeItem(CURRENT_USER_KE
 
 
 // --- Image Utility ---
-const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number = 2048, quality: number = 0.9): Promise<Blob> => {
+const imageFileToBlob = (file: File, maxWidth: number = 1920, maxHeight: number = 1920, quality: number = 0.9): Promise<Blob> => {
     return new Promise((resolve, reject) => {
         if (!file.type.startsWith('image/')) return reject(new Error('File is not an image.'));
 
@@ -68,13 +68,8 @@ const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number 
             const img = new Image();
             img.src = event.target.result as string;
             img.onload = () => {
-                // Optimization: If the image is already within bounds AND file size is reasonable (<500KB), use original.
-                // If file is huge (e.g. 5MB png), we force re-compression even if dimensions are okay.
-                if (img.width <= maxWidth && img.height <= maxHeight && file.size < 500 * 1024) {
-                    resolve(file);
-                    return;
-                }
-
+                // Enforce strict resizing even if file is small but dimensions are huge, to save canvas memory.
+                // We removed the "skip if small file" check to ensure consistent processing for sharing.
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
 
@@ -99,7 +94,7 @@ const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number 
                 ctx.drawImage(img, 0, 0, width, height);
                 
                 const transparentMimeTypes = ['image/png', 'image/gif', 'image/webp'];
-                // Force JPEG for large images if not explicitly needing transparency, or if file was huge
+                // Force JPEG for large images unless transparency is likely needed, to save space.
                 const outputMimeType = (transparentMimeTypes.includes(file.type) && file.size < 2 * 1024 * 1024) ? 'image/png' : 'image/jpeg';
                 
                 if (outputMimeType === 'image/png') {
@@ -128,7 +123,11 @@ const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number 
 
 
 export const processAndStoreImage = async (file: File, options: { maxWidth: number; maxHeight: number; quality?: number }): Promise<string> => {
-    const blob = await imageFileToBlob(file, options.maxWidth, options.maxHeight, options.quality);
+    // Enforce a hard cap of 1920px to be safe for sharing, regardless of requested options
+    const safeMaxWidth = Math.min(options.maxWidth, 1920);
+    const safeMaxHeight = Math.min(options.maxHeight, 1920);
+    
+    const blob = await imageFileToBlob(file, safeMaxWidth, safeMaxHeight, options.quality);
     const key = `idb://${crypto.randomUUID()}`;
     await idbService.setImage(key, blob);
     return key;
@@ -583,7 +582,7 @@ const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<st
 }
 
 
-export const generateShareableLink = async (onProgress?: (message: string) => void): Promise<{url: string, warning?: string}> => {
+export const generateShareableLink = async (onProgress?: (message: string) => void, forceNoCompression = false): Promise<{url: string, warning?: string}> => {
     const SHAREABLE_LOCAL_STORAGE_KEYS = APP_KEYS.filter(
         key => key !== 'elvarium_users' && key !== 'elvarium_current_user'
     );
@@ -597,7 +596,7 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
         }
     }
     
-    onProgress?.("Reading images...");
+    onProgress?.("Reading images (this may take a moment)...");
     // This now calls the robust serial implementation in idbService
     const indexedDBData = await idbService.getAllImagesAsDataUrls();
     
@@ -608,16 +607,39 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     
     const rawJsonString = JSON.stringify(dataToShare);
     
-    if (!isCompressionSupported()) {
-        onProgress?.("Uploading (No Compression)...");
-        const payloadObject = { compressed: false, data: btoa(rawJsonString) };
-        const payloadString = JSON.stringify(payloadObject);
-         try {
-            const pasteId = await uploadToDpasteWithRetry(payloadString);
-             const baseUrl = window.location.origin + window.location.pathname;
-            return { url: `${baseUrl}#id=${pasteId}`, warning: "Compression not supported. Only small worlds can be shared." };
+    // Handle No Compression (Safe Mode or Unsupported)
+    if (forceNoCompression || !isCompressionSupported()) {
+        onProgress?.("Uploading (Safe Mode - No Compression)...");
+        // We intentionally don't use the 'compressed' flag here
+        const payloadObject = { 
+            compressed: false, 
+            data: isCompressionSupported() ? btoa(rawJsonString) : btoa(unescape(encodeURIComponent(rawJsonString))) // Fallback safe b64 
+        };
+        // If raw JSON is used directly in newer implementations, we can just send rawJsonString,
+        // but maintaining wrapper consistency (compressed: false) is better for versioning.
+        // Actually, let's just send the raw JSON object directly to file.io if in safe mode to be cleanest.
+        // But to keep compatibility with our fetch logic which expects either a raw JSON dump OR {compressed: true...}
+        
+        const payloadString = rawJsonString; // Upload pure JSON text for maximum compatibility
+
+        try {
+             // Try dpaste first if small enough
+             if (new Blob([payloadString]).size < 250 * 1024) {
+                 const pasteId = await uploadToDpasteWithRetry(payloadString);
+                 const baseUrl = window.location.origin + window.location.pathname;
+                 return { url: `${baseUrl}#id=${pasteId}` };
+             } else {
+                 // Likely too big for dpaste without chunking, go straight to file.io for reliability
+                 const pasteId = await uploadToFileIo(payloadString);
+                 const baseUrl = window.location.origin + window.location.pathname;
+                 return { 
+                     url: `${baseUrl}#fio=${pasteId}`, 
+                     warning: "Safe Mode used. File is large. Link valid for ONE download only via file.io." 
+                 };
+             }
         } catch (e: any) {
-            throw new Error("Data too large for this browser to share.");
+            console.error("Safe mode upload failed", e);
+            throw new Error("Upload failed even in Safe Mode. Check your internet connection.");
         }
     }
     
