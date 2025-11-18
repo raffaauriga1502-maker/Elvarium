@@ -115,12 +115,12 @@ export const getAllArcs = async (): Promise<string[]> => {
 
 // --- Image Utility ---
 export const processAndStoreImage = async (file: File, options: { maxWidth: number; maxHeight: number; quality?: number }): Promise<string> => {
-    // Enforce stricter caps for mobile performance
-    const safeMaxWidth = Math.min(options.maxWidth, 1280);
-    const safeMaxHeight = Math.min(options.maxHeight, 1280);
+    // Enforce caps but allow for higher quality storage as requested
+    const safeMaxWidth = Math.min(options.maxWidth, 1920);
+    const safeMaxHeight = Math.min(options.maxHeight, 1920);
     
-    const requestedQuality = options.quality !== undefined ? options.quality : 0.6;
-    const safeQuality = Math.min(requestedQuality, 0.8);
+    const requestedQuality = options.quality !== undefined ? options.quality : 0.8;
+    const safeQuality = Math.min(requestedQuality, 0.95);
     
     const blob = await new Promise<Blob>((resolve, reject) => {
         if (!file.type.startsWith('image/')) return reject(new Error('File is not an image.'));
@@ -171,7 +171,7 @@ export const processAndStoreImage = async (file: File, options: { maxWidth: numb
                                 else reject(new Error('Canvas to Blob conversion failed (fallback)'));
                              }, 'image/png');
                         }
-                    }, 'image/webp', 0.8); // 0.8 quality for storage
+                    }, 'image/webp', safeQuality);
                 } else {
                      // JPEG for everything else
                      canvas.toBlob((b) => {
@@ -234,7 +234,6 @@ export const exportAllData = async (
     }
 
     // 2. Get Images (with optional optimization)
-    // This is where we fix the "Upload too slow" issue by compressing images specifically for sharing
     if (onProgress) onProgress("Preparing images...");
     const images = await idbService.getAllImagesAsDataUrls(optimizeImagesForShare, (current, total) => {
         if (onProgress) onProgress(`Processing images: ${current}/${total}`);
@@ -292,8 +291,11 @@ export const generateShareableLink = async (
 ): Promise<{ url: string; warning?: string }> => {
     if (onStatusUpdate) onStatusUpdate("Gathering data...");
 
-    // Use optimization unless safeMode (user requested "No Compression") is true
-    const data = await exportAllData(!safeMode, onStatusUpdate);
+    // CRITICAL CHANGE: Always pass FALSE for optimization.
+    // The user explicitly requested "no reducing or lowering".
+    // This preserves full transparency and original quality, 
+    // and significantly speeds up the "Gathering/Processing" phase by skipping re-encoding.
+    const data = await exportAllData(false, onStatusUpdate);
     
     if (onStatusUpdate) onStatusUpdate("Packing data...");
     const jsonString = JSON.stringify(data);

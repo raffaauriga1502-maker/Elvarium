@@ -113,10 +113,10 @@ export async function checkImageExists(key: string): Promise<boolean> {
     });
 }
 
-// Helper to optimize images for export
+// Helper to optimize images for export - RELAXED to respect user wish for no reduction
 async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
-    // If blob is small (< 150KB), don't compress, just return as base64
-    if (blob.size < 150 * 1024) {
+    // Return original if small enough
+    if (blob.size < 100 * 1024) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
@@ -125,7 +125,7 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
         });
     }
 
-    // Otherwise, resize and compress aggressively for sharing
+    // Even if optimization is requested, we keep dimensions high and focus on WebP efficiency only.
     return new Promise((resolve, reject) => {
         const img = new Image();
         const url = URL.createObjectURL(blob);
@@ -133,12 +133,14 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
         img.onload = () => {
             URL.revokeObjectURL(url);
             const canvas = document.createElement('canvas');
-            // Aggressive Downscale: 800px is sufficient for mobile/web viewing
-            const MAX_SIZE = 800; 
+            
+            // Reset to high quality threshold (1280px) to match storage, 
+            // ensuring we don't aggressively downscale if this is ever called.
+            const MAX_SIZE = 1280; 
+            
             let width = img.width;
             let height = img.height;
 
-            // Calculate new dimensions
             if (width > height) {
                 if (width > MAX_SIZE) {
                     height *= MAX_SIZE / width;
@@ -159,26 +161,11 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
                  return;
             }
             
-            // Detect if the source is likely transparent (PNG, WebP, GIF)
-            const isTransparentSource = blob.type.includes('png') || blob.type.includes('webp') || blob.type.includes('gif');
-
-            if (isTransparentSource) {
-                // Clear canvas to ensure transparency
-                ctx.clearRect(0, 0, width, height);
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Export as WebP to preserve transparency while compressing.
-                // Quality 0.5 provides good size reduction for banners/portraits on mobile.
-                resolve(canvas.toDataURL('image/webp', 0.5));
-            } else {
-                // Opaque source (JPEG or others): Use JPEG for best compression
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, width, height);
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Aggressive compression for sharing: JPEG at 40% quality
-                resolve(canvas.toDataURL('image/jpeg', 0.4));
-            }
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Use high quality WebP to ensure transparency and visual fidelity
+            resolve(canvas.toDataURL('image/webp', 0.9));
         };
         img.onerror = (e) => {
              URL.revokeObjectURL(url);
@@ -205,7 +192,9 @@ export async function getAllImagesAsDataUrls(
     });
 
     // Phase 2: Batch Parallel Execution
-    const BATCH_SIZE = optimize ? 3 : 5; // Smaller batch for optimization to save CPU/UI responsiveness
+    // Optimization takes CPU, raw reading is IO bound. 
+    // If optimize is FALSE (default now), we can use larger batches for speed.
+    const BATCH_SIZE = optimize ? 2 : 10; 
     let completed = 0;
     const total = keys.length;
 
@@ -218,7 +207,7 @@ export async function getAllImagesAsDataUrls(
             try {
                 const blob = await getImage(key);
                 if (blob) {
-                    // Use optimization if requested, otherwise standard base64 conversion
+                    // Use optimization only if explicitly requested, otherwise standard base64 conversion
                     if (optimize) {
                         results[key] = await optimizeBlobToDataUrl(blob);
                     } else {
@@ -239,8 +228,8 @@ export async function getAllImagesAsDataUrls(
         completed += batchKeys.length;
         if (onProgress) onProgress(Math.min(completed, total), total);
 
-        // Yield to main thread to keep UI responsive
-        await new Promise(r => setTimeout(r, 20));
+        // Yield less frequently if we aren't optimizing (doing CPU work)
+        await new Promise(r => setTimeout(r, 10));
     }
 
     return results;
