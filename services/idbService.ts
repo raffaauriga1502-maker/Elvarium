@@ -142,8 +142,15 @@ export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> 
                                 rejectRead(new Error(`FileReader failed for key ${cursor.key}`));
                             }
                         };
-                        reader.onerror = () => rejectRead(reader.error);
+                        // Catch individual file read errors so they don't bomb the whole export
+                        reader.onerror = () => {
+                            console.warn(`Failed to read blob for key ${cursor.key}. Skipping.`);
+                            resolveRead(); // Resolve anyway to continue
+                        };
                         reader.readAsDataURL(blob);
+                    }).catch(e => {
+                         console.warn(`Unexpected error processing key ${cursor.key}`, e);
+                         // Resolve anyway
                     });
                     promises.push(p);
                 } else {

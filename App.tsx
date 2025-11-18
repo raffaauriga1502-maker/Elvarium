@@ -207,14 +207,20 @@ const App: React.FC = () => {
               // Clean URL before hard reload
               window.history.replaceState(null, '', window.location.pathname);
               
-              // Explicit wait and check to ensure IDB flush.
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              // Explicit wait to ensure IDB flush.
+              await new Promise(resolve => setTimeout(resolve, 1500));
+
               try {
                   // Verification: Read key from LocalStorage (which was just imported)
                   const homeBgKey = await apiService.getHomeBackground();
                   if (homeBgKey) {
                       // Then verify the actual blob exists in IDB
-                      const exists = await apiService.verifyImageExists(homeBgKey);
+                      let exists = await apiService.verifyImageExists(homeBgKey);
+                      if (!exists) {
+                          // Wait a bit more and try once
+                          await new Promise(resolve => setTimeout(resolve, 1000));
+                          exists = await apiService.verifyImageExists(homeBgKey);
+                      }
                       if (!exists) {
                           console.warn("Verification warning: Image key exists but blob not found immediately.");
                       }

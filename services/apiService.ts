@@ -143,10 +143,12 @@ export const resolveImageUrl = async (key: string | null | undefined, retry = tr
         try {
             let blob = await idbService.getImage(key);
             
-            // Aggressive Retry: IDB might be slow on cold boot or after heavy write
+            // Aggressive Retry: IDB might be slow on cold boot or after heavy write.
+            // Increased retries for mobile visitors experiencing blank screens.
             if (!blob && retry) {
-                for (let i = 0; i < 3; i++) {
-                    await new Promise(r => setTimeout(r, 200 * (i + 1))); // 200ms, 400ms, 600ms
+                const delays = [200, 500, 1000, 2000, 3000]; // Retry for up to ~6 seconds
+                for (const delay of delays) {
+                    await new Promise(r => setTimeout(r, delay));
                     blob = await idbService.getImage(key);
                     if (blob) break;
                 }
@@ -157,7 +159,7 @@ export const resolveImageUrl = async (key: string | null | undefined, retry = tr
                 urlCache.set(key, objectUrl);
                 return objectUrl;
             } else {
-                console.warn(`Image blob not found for key: ${key} after retries`);
+                console.warn(`Image blob not found for key: ${key} after multiple retries`);
             }
         } catch (e) {
             console.warn(`Failed to resolve image for key ${key}`, e);
