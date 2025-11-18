@@ -69,7 +69,6 @@ const imageFileToBlob = (file: File, maxWidth: number = 1920, maxHeight: number 
             img.src = event.target.result as string;
             img.onload = () => {
                 // Enforce strict resizing even if file is small but dimensions are huge, to save canvas memory.
-                // We removed the "skip if small file" check to ensure consistent processing for sharing.
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
 
@@ -145,9 +144,8 @@ export const resolveImageUrl = async (key: string | null | undefined, retry = tr
             let blob = await idbService.getImage(key);
             
             // Aggressive Retry: IDB might be slow on cold boot or after heavy write.
-            // Increased retries for mobile visitors experiencing blank screens.
             if (!blob && retry) {
-                const delays = [200, 500, 1000, 2000, 3000]; // Retry for up to ~6 seconds
+                const delays = [200, 500, 1000, 2000, 3000];
                 for (const delay of delays) {
                     await new Promise(r => setTimeout(r, delay));
                     blob = await idbService.getImage(key);
@@ -174,7 +172,6 @@ export const resolveImageUrl = async (key: string | null | undefined, retry = tr
     return null;
 };
 
-// Helper for import verification
 export const verifyImageExists = async (key: string): Promise<boolean> => {
     if (key.startsWith('idb://')) {
         return await idbService.checkImageExists(key);
@@ -336,7 +333,6 @@ export const importAllData = async (data: any): Promise<void> => {
     // Import IndexedDB data using Memory-Safe Streaming Batch
     if (data.indexedDB) {
         const keys = Object.keys(data.indexedDB);
-        // Process in small batches (5) to keep memory footprint low on mobile devices
         const BATCH_SIZE = 5; 
         
         for (let i = 0; i < keys.length; i += BATCH_SIZE) {
@@ -347,7 +343,6 @@ export const importAllData = async (data: any): Promise<void> => {
                 try {
                     const dataUrl = data.indexedDB[key];
                     if (typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
-                        // Convert to Blob immediately
                         const blob = dataUrlToBlob(dataUrl);
                         batchImages[key] = blob;
                     }
@@ -357,17 +352,13 @@ export const importAllData = async (data: any): Promise<void> => {
             }
             
             if (Object.keys(batchImages).length > 0) {
-                // Save this batch immediately to DB
                 await idbService.setImagesBulk(batchImages);
             }
             
-            // Force a small pause to allow the UI thread to update and GC to run
             await new Promise(resolve => setTimeout(resolve, 50));
         }
     }
 
-    // Crucial: Explicitly close the database connection to force a flush to disk
-    // before any page reload occurs.
     idbService.closeConnection();
 };
 
@@ -449,7 +440,10 @@ function chunkString(str: string, length: number): string[] {
     return chunks;
 }
 
-// Helper: Fetch with timeout to prevent infinite hangs
+// Increased timeout to 3 minutes to handle large files on slow mobile connections
+const UPLOAD_TIMEOUT = 180000; 
+
+// Helper: Fetch with timeout
 async function fetchWithTimeout(resource: RequestInfo, options: RequestInit = {}, timeout = 30000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
@@ -472,7 +466,6 @@ async function processInBatches<T, R>(items: T[], batchSize: number, processItem
         const batch = items.slice(i, i + batchSize);
         const batchResults = await Promise.all(batch.map(processItem));
         results.push(...batchResults);
-        // Add delay between batches to be gentle on the API
         if (i + batchSize < items.length) {
             await new Promise(r => setTimeout(r, 200));
         }
@@ -485,7 +478,7 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
         let textData = '';
 
         if (source === 'fileio') {
-            const response = await fetchWithTimeout(`https://file.io/${idOrIds}`);
+            const response = await fetchWithTimeout(`https://file.io/${idOrIds}`, {}, UPLOAD_TIMEOUT);
              if (!response.ok) {
                  if (response.status === 404) {
                       throw new Error("The shared file has been deleted or already downloaded. File.io links are valid for 1 download only.");
@@ -495,7 +488,6 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
             textData = await response.text();
         } else if (source === 'dpaste-chunked') {
             const ids = idOrIds.split(',');
-            // Use smaller batch size for fetching to be safe
             const chunks = await processInBatches(ids, 3, async (id) => {
                  const response = await fetchWithTimeout(`https://dpaste.com/${id}.txt`);
                  if (!response.ok) throw new Error(`Failed to fetch chunk ${id}`);
@@ -530,18 +522,25 @@ export const fetchSharedWorldData = async (idOrIds: string, source: ShareSource 
 };
 
 const uploadToFileIo = async (payloadString: string): Promise<string> => {
-     const blob = new Blob([payloadString], { type: 'application/json' });
+     // Use text/plain to avoid strict JSON validation issues on file.io side sometimes
+     const blob = new Blob([payloadString], { type: 'text/plain' });
      const formData = new FormData();
      formData.append('file', blob, 'elvarium_world.json');
+     formData.append('expires', '1w'); // Explicitly request 1 week
+     formData.append('maxDownloads', '1');
+     formData.append('autoDelete', 'true');
      
      const response = await fetchWithTimeout('https://file.io/', {
          method: 'POST',
          body: formData
-     }, 60000); // 60s timeout for larger files
+     }, UPLOAD_TIMEOUT); 
      
-     if (!response.ok) throw new Error(`File.io upload failed: ${response.statusText}`);
+     if (!response.ok) {
+         const errText = await response.text().catch(() => response.statusText);
+         throw new Error(`File.io upload failed (${response.status}): ${errText}`);
+     }
      const json = await response.json();
-     if (!json.success) throw new Error('File.io reported failure');
+     if (!json.success) throw new Error('File.io reported failure: ' + (json.message || 'Unknown'));
      
      return json.key;
 }
@@ -559,7 +558,7 @@ const uploadToDpaste = async (content: string): Promise<string> => {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData,
-    });
+    }, UPLOAD_TIMEOUT);
 
     if (response.ok) {
         const pasteUrl = await response.text();
@@ -575,7 +574,7 @@ const uploadToDpasteWithRetry = async (content: string, retries = 3): Promise<st
             return await uploadToDpaste(content);
         } catch (e) {
             if (i === retries - 1) throw e;
-            await new Promise(r => setTimeout(r, 1000)); // Longer backoff
+            await new Promise(r => setTimeout(r, 1000));
         }
     }
     throw new Error("Unreachable");
@@ -597,7 +596,6 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     }
     
     onProgress?.("Reading images (this may take a moment)...");
-    // This now calls the robust serial implementation in idbService
     const indexedDBData = await idbService.getAllImagesAsDataUrls();
     
     const dataToShare = {
@@ -610,36 +608,35 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     // Handle No Compression (Safe Mode or Unsupported)
     if (forceNoCompression || !isCompressionSupported()) {
         onProgress?.("Uploading (Safe Mode - No Compression)...");
-        // We intentionally don't use the 'compressed' flag here
-        const payloadObject = { 
-            compressed: false, 
-            data: isCompressionSupported() ? btoa(rawJsonString) : btoa(unescape(encodeURIComponent(rawJsonString))) // Fallback safe b64 
-        };
-        // If raw JSON is used directly in newer implementations, we can just send rawJsonString,
-        // but maintaining wrapper consistency (compressed: false) is better for versioning.
-        // Actually, let's just send the raw JSON object directly to file.io if in safe mode to be cleanest.
-        // But to keep compatibility with our fetch logic which expects either a raw JSON dump OR {compressed: true...}
         
         const payloadString = rawJsonString; // Upload pure JSON text for maximum compatibility
 
         try {
              // Try dpaste first if small enough
              if (new Blob([payloadString]).size < 250 * 1024) {
-                 const pasteId = await uploadToDpasteWithRetry(payloadString);
-                 const baseUrl = window.location.origin + window.location.pathname;
-                 return { url: `${baseUrl}#id=${pasteId}` };
-             } else {
-                 // Likely too big for dpaste without chunking, go straight to file.io for reliability
-                 const pasteId = await uploadToFileIo(payloadString);
-                 const baseUrl = window.location.origin + window.location.pathname;
-                 return { 
-                     url: `${baseUrl}#fio=${pasteId}`, 
-                     warning: "Safe Mode used. File is large. Link valid for ONE download only via file.io." 
-                 };
+                 try {
+                    const pasteId = await uploadToDpasteWithRetry(payloadString);
+                    const baseUrl = window.location.origin + window.location.pathname;
+                    return { url: `${baseUrl}#id=${pasteId}` };
+                 } catch (dpasteError) {
+                     console.warn("Dpaste failed in safe mode, falling back to file.io", dpasteError);
+                     // Fallthrough to file.io
+                 }
              }
+             
+             // Go to file.io for reliability or if dpaste failed
+             const pasteId = await uploadToFileIo(payloadString);
+             const baseUrl = window.location.origin + window.location.pathname;
+             return { 
+                 url: `${baseUrl}#fio=${pasteId}`, 
+                 warning: "Safe Mode used. File is large. Link valid for ONE download only via file.io." 
+             };
+             
         } catch (e: any) {
             console.error("Safe mode upload failed", e);
-            throw new Error("Upload failed even in Safe Mode. Check your internet connection.");
+            let msg = e.message || "Unknown error";
+            if (msg.includes("Failed to fetch")) msg = "Network error or request blocked (Check connection/AdBlock)";
+            throw new Error(`Upload failed: ${msg}. If this persists, use 'Download File'.`);
         }
     }
     
@@ -659,7 +656,6 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     const url = new URL(baseUrl);
     url.search = '';
 
-    // Reduced limit to be much safer with dpaste limits and base64 expansion (approx 250KB)
     const SINGLE_PASTE_LIMIT = 250 * 1024; 
     const MAX_CHUNKS = 200; 
 
@@ -678,9 +674,7 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
         try {
             const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
             let uploadedCount = 0;
-            // Reduced concurrency to 1 (Serial Upload) to guarantee order and avoid rate limits for large payloads
             const ids = await processInBatches(chunks, 1, async (chunk) => {
-                // Increased delay to 500ms to be very gentle with dpaste
                 await new Promise(r => setTimeout(r, 500));
                 const res = await uploadToDpasteWithRetry(chunk);
                 uploadedCount++;
@@ -701,11 +695,11 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
         url.hash = `#fio=${pasteId}`;
         return { 
             url: url.href, 
-            warning: "Large world file (>100MB). Link valid for ONE download only via file.io." 
+            warning: "Large world file. Link valid for ONE download only via file.io." 
         };
     } catch (error: any) {
         console.error("All sharing services failed:", error);
-        throw new Error("Could not share. Data is too large or network failed.");
+        throw new Error(`Sharing failed: ${error.message}`);
     }
 };
 
