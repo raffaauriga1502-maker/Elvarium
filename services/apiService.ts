@@ -297,12 +297,12 @@ export const generateShareableLink = async (
     // and significantly speeds up the "Gathering/Processing" phase by skipping re-encoding.
     const data = await exportAllData(false, onStatusUpdate);
     
-    if (onStatusUpdate) onStatusUpdate("Packing data...");
+    if (onStatusUpdate) onStatusUpdate("Packing JSON...");
     const jsonString = JSON.stringify(data);
     const blob = new Blob([jsonString], { type: 'application/json' });
     
     const sizeMB = blob.size / (1024 * 1024);
-    if (onStatusUpdate) onStatusUpdate(`Size: ${sizeMB.toFixed(2)} MB. Uploading...`);
+    if (onStatusUpdate) onStatusUpdate(`Uploading ${sizeMB.toFixed(2)} MB... (Depends on internet speed)`);
 
     // STRICT GUARD: Mobile browsers often fail > 40MB on upload due to memory or timeouts.
     if (sizeMB > 40) {

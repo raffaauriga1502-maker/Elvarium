@@ -194,7 +194,7 @@ export async function getAllImagesAsDataUrls(
     // Phase 2: Batch Parallel Execution
     // Optimization takes CPU, raw reading is IO bound. 
     // If optimize is FALSE (default now), we can use larger batches for speed.
-    const BATCH_SIZE = optimize ? 2 : 10; 
+    const BATCH_SIZE = optimize ? 5 : 50; 
     let completed = 0;
     const total = keys.length;
 
@@ -228,8 +228,14 @@ export async function getAllImagesAsDataUrls(
         completed += batchKeys.length;
         if (onProgress) onProgress(Math.min(completed, total), total);
 
-        // Yield less frequently if we aren't optimizing (doing CPU work)
-        await new Promise(r => setTimeout(r, 10));
+        // Yield ONLY if optimization is running to prevent UI freeze. 
+        // For raw exports, burst through as fast as possible.
+        if (optimize) {
+            await new Promise(r => setTimeout(r, 10));
+        } else {
+            // Minimal yield every 2 batches to let UI update status text
+            if (i % (BATCH_SIZE * 2) === 0) await new Promise(r => setTimeout(r, 0));
+        }
     }
 
     return results;
