@@ -56,7 +56,7 @@ export const removeCurrentUser = (): Promise<void> => removeItem(CURRENT_USER_KE
 
 
 // --- Image Utility ---
-const imageFileToBlob = (file: File, maxWidth: number = 1920, maxHeight: number = 1920, quality: number = 0.9): Promise<Blob> => {
+const imageFileToBlob = (file: File, maxWidth: number = 1600, maxHeight: number = 1600, quality: number = 0.7): Promise<Blob> => {
     return new Promise((resolve, reject) => {
         if (!file.type.startsWith('image/')) return reject(new Error('File is not an image.'));
 
@@ -68,7 +68,7 @@ const imageFileToBlob = (file: File, maxWidth: number = 1920, maxHeight: number 
             const img = new Image();
             img.src = event.target.result as string;
             img.onload = () => {
-                // Enforce strict resizing even if file is small but dimensions are huge, to save canvas memory.
+                // Enforce strict resizing to save memory and reduce upload size.
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
 
@@ -94,7 +94,7 @@ const imageFileToBlob = (file: File, maxWidth: number = 1920, maxHeight: number 
                 
                 const transparentMimeTypes = ['image/png', 'image/gif', 'image/webp'];
                 // Force JPEG for large images unless transparency is likely needed, to save space.
-                const outputMimeType = (transparentMimeTypes.includes(file.type) && file.size < 2 * 1024 * 1024) ? 'image/png' : 'image/jpeg';
+                const outputMimeType = (transparentMimeTypes.includes(file.type) && file.size < 1.5 * 1024 * 1024) ? 'image/png' : 'image/jpeg';
                 
                 if (outputMimeType === 'image/png') {
                      canvas.toBlob((blob) => {
@@ -122,11 +122,17 @@ const imageFileToBlob = (file: File, maxWidth: number = 1920, maxHeight: number 
 
 
 export const processAndStoreImage = async (file: File, options: { maxWidth: number; maxHeight: number; quality?: number }): Promise<string> => {
-    // Enforce a hard cap of 1920px to be safe for sharing, regardless of requested options
-    const safeMaxWidth = Math.min(options.maxWidth, 1920);
-    const safeMaxHeight = Math.min(options.maxHeight, 1920);
+    // Enforce a hard cap of 1600px to be safe for sharing, regardless of requested options.
+    // 1920px is often too big for quick mobile uploads.
+    const safeMaxWidth = Math.min(options.maxWidth, 1600);
+    const safeMaxHeight = Math.min(options.maxHeight, 1600);
     
-    const blob = await imageFileToBlob(file, safeMaxWidth, safeMaxHeight, options.quality);
+    // Ensure quality doesn't exceed 0.8 generally, and default to 0.7 if not provided.
+    // This prevents accidental huge files.
+    const requestedQuality = options.quality !== undefined ? options.quality : 0.7;
+    const safeQuality = Math.min(requestedQuality, 0.8);
+    
+    const blob = await imageFileToBlob(file, safeMaxWidth, safeMaxHeight, safeQuality);
     const key = `idb://${crypto.randomUUID()}`;
     await idbService.setImage(key, blob);
     return key;

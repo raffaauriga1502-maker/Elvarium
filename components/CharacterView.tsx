@@ -110,7 +110,7 @@ const CharacterView: React.FC<CharacterViewProps> = ({ characterType, userRole }
         const file = e.target.files?.[0];
         if (file) {
              try {
-                const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.8 });
+                const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1600, maxHeight: 900, quality: 0.6 });
                 await apiService.saveCharactersBackground(imageKey);
                 const resolved = await apiService.resolveImageUrl(imageKey);
                 setBgUrl(resolved);

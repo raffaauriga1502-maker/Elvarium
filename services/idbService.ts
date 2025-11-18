@@ -121,7 +121,6 @@ export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> 
     const results: Record<string, string> = {};
 
     // Phase 1: Retrieve all keys first.
-    // This avoids keeping a cursor/transaction open while performing slow FileRead operations.
     const keys = await new Promise<string[]>((resolve, reject) => {
         const transaction = dbInstance.transaction(STORE_NAME, 'readonly');
         const store = transaction.objectStore(STORE_NAME);
@@ -131,29 +130,35 @@ export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> 
         req.onerror = () => reject(req.error);
     });
 
-    // Phase 2: Fetch and convert each image sequentially.
-    // Serial execution ensures we don't run out of memory or crash the browser tab with too many active FileReaders.
-    let count = 0;
-    for (const key of keys) {
-        // Yield to main thread every few images to prevent "Page Unresponsive" browser warnings on large sets
-        if (count++ % 5 === 0) await new Promise(r => setTimeout(r, 0));
-
-        try {
-            // Re-open a transaction for each fetch or rely on helper
-            const blob = await getImage(key);
-            if (blob) {
-                const base64 = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.onerror = () => reject(new Error(`FileReader error for key ${key}`));
-                    reader.readAsDataURL(blob);
-                });
-                results[key] = base64;
+    // Phase 2: Batch Parallel Execution
+    // Reading images one by one is too slow. Reading all at once crashes memory.
+    // We use batches of 5 concurrent reads.
+    const BATCH_SIZE = 5;
+    
+    for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+        const batchKeys = keys.slice(i, i + BATCH_SIZE);
+        
+        // Execute batch in parallel
+        await Promise.all(batchKeys.map(async (key) => {
+            try {
+                const blob = await getImage(key);
+                if (blob) {
+                    const base64 = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.onerror = () => reject(new Error(`FileReader error for key ${key}`));
+                        reader.readAsDataURL(blob);
+                    });
+                    results[key] = base64;
+                }
+            } catch (e) {
+                // Skip erroneous images instead of failing the whole export
+                console.warn(`Failed to export image ${key}:`, e);
             }
-        } catch (e) {
-            console.warn(`Failed to export image ${key}:`, e);
-            // Skip erroneous images instead of failing the whole export
-        }
+        }));
+        
+        // Yield to main thread every batch to keep UI responsive
+        await new Promise(r => setTimeout(r, 10));
     }
 
     return results;

@@ -202,7 +202,8 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
     const file = event.target.files?.[0];
     if (file) {
         try {
-            const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1280, maxHeight: 720, quality: 0.7 });
+            // Reduced quality to 0.6 to save space
+            const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1280, maxHeight: 720, quality: 0.6 });
             setEditedCharacter(prev => ({ ...prev, backgroundImageUrl: imageKey }));
         } catch (error) {
             console.error("Error processing background image:", error);
@@ -406,7 +407,7 @@ const CharacterCard: React.FC<CharacterCardProps> = ({ character, onUpdate, onDe
 
   const handleGalleryImageChange = async (id: string, file: File) => {
     try {
-        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1024, maxHeight: 1024, quality: 0.8 });
+        const imageKey = await apiService.processAndStoreImage(file, { maxWidth: 1024, maxHeight: 1024, quality: 0.7 });
         setEditedCharacter(prev => ({
             ...prev,
             gallery: prev.gallery.map(img => img.id === id ? { ...img, imageUrl: imageKey } : img)
