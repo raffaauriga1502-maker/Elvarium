@@ -299,7 +299,37 @@ export const generateShareableLink = async (
          throw new Error(`World size (${sizeMB.toFixed(2)} MB) is too large to upload via link. Please use 'Download File' instead.`);
     }
 
-    // We use file.io for robust large file handling. 
+    // STRATEGY 1: dpaste (For small files < 0.5MB) - More reliable for text/json
+    if (sizeMB < 0.5) {
+        try {
+            const text = await blob.text();
+            const formData = new FormData();
+            formData.append('content', text);
+            formData.append('expiry_days', '7');
+            formData.append('syntax', 'json');
+            formData.append('title', 'Elvarium World Data');
+
+            // dpaste is very robust for small payloads
+            const response = await fetch('https://dpaste.com/api/', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const location = await response.text();
+                // dpaste returns full URL (e.g., https://dpaste.com/ABCD123)
+                const id = location.trim().split('/').filter(Boolean).pop();
+                if (id) {
+                    return { url: `${window.location.origin}${window.location.pathname}#id=${id}` };
+                }
+            }
+        } catch (e) {
+            console.warn("dpaste fallback failed, trying file.io...", e);
+        }
+    }
+
+    // STRATEGY 2: file.io (For larger files, or if dpaste failed)
+    // file.io handles binary blobs well but can be blocked by ad-blockers or firewalls
     try {
         const formData = new FormData();
         formData.append('file', blob, 'elvarium_world.json');
@@ -330,6 +360,9 @@ export const generateShareableLink = async (
         console.error("Share upload failed:", error);
         // Translate generic fetch errors to something more helpful for the user
         if (error.message.includes('Failed to fetch')) {
+             if (sizeMB < 1) {
+                 throw new Error("Upload failed. Your browser or network might be blocking the upload service (check AdBlock/Firewall).");
+             }
              throw new Error("Upload failed. Your network connection may be unstable, or the file is too large for your current connection.");
         }
         throw new Error(`${error.message}`);
@@ -347,7 +380,7 @@ export const fetchSharedWorldData = async (id: string, source: ShareSource): Pro
         return await response.json();
     } 
     
-    // Legacy/Fallback dpaste logic (if used by older links)
+    // Legacy/Fallback dpaste logic (if used by older links or new small links)
     if (source === 'dpaste') {
          const response = await fetch(`https://dpaste.com/${id}.txt`);
          if (!response.ok) throw new Error("Failed to fetch from dpaste.");
