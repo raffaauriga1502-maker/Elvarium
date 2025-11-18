@@ -440,8 +440,8 @@ function chunkString(str: string, length: number): string[] {
     return chunks;
 }
 
-// Increased timeout to 3 minutes to handle large files on slow mobile connections
-const UPLOAD_TIMEOUT = 180000; 
+// Increased timeout to 10 minutes to handle large files on slow mobile connections
+const UPLOAD_TIMEOUT = 600000; 
 
 // Helper: Fetch with timeout
 async function fetchWithTimeout(resource: RequestInfo, options: RequestInit = {}, timeout = 30000) {
@@ -454,8 +454,11 @@ async function fetchWithTimeout(resource: RequestInfo, options: RequestInit = {}
         });
         clearTimeout(id);
         return response;
-    } catch (error) {
+    } catch (error: any) {
         clearTimeout(id);
+        if (error.name === 'AbortError') {
+             throw new Error(`Request timed out after ${timeout/1000} seconds. Your connection may be too slow.`);
+        }
         throw error;
     }
 }
