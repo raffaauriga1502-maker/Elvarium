@@ -118,56 +118,41 @@ export async function checkImageExists(key: string): Promise<boolean> {
 
 export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> {
     const dbInstance = await getDB();
-    return new Promise((resolve, reject) => {
+    const results: Record<string, string> = {};
+
+    // Phase 1: Retrieve all keys first.
+    // This avoids keeping a cursor/transaction open while performing slow FileRead operations.
+    const keys = await new Promise<string[]>((resolve, reject) => {
         const transaction = dbInstance.transaction(STORE_NAME, 'readonly');
         const store = transaction.objectStore(STORE_NAME);
-        const request = store.openCursor();
-        const promises: Promise<void>[] = [];
-        const results: Record<string, string> = {};
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = (event) => {
-            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-            if (cursor) {
-                // Ensure the value is actually a Blob before trying to read it
-                if (cursor.value instanceof Blob) {
-                    const p = new Promise<void>((resolveRead, rejectRead) => {
-                        const blob = cursor.value as Blob;
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            if (e.target?.result) {
-                                results[cursor.key as string] = e.target.result as string;
-                                resolveRead();
-                            } else {
-                                rejectRead(new Error(`FileReader failed for key ${cursor.key}`));
-                            }
-                        };
-                        // Catch individual file read errors so they don't bomb the whole export
-                        reader.onerror = () => {
-                            console.warn(`Failed to read blob for key ${cursor.key}. Skipping.`);
-                            resolveRead(); // Resolve anyway to continue
-                        };
-                        reader.readAsDataURL(blob);
-                    }).catch(e => {
-                         console.warn(`Unexpected error processing key ${cursor.key}`, e);
-                         // Resolve anyway
-                    });
-                    promises.push(p);
-                } else {
-                    console.warn(`Skipping non-blob value in IndexedDB for key ${cursor.key}`);
-                }
-                cursor.continue();
-            }
-        };
-
-        transaction.oncomplete = () => {
-            Promise.all(promises).then(() => {
-                resolve(results);
-            }).catch(reject);
-        };
+        const req = store.getAllKeys();
         
-        transaction.onerror = () => reject(transaction.error);
+        req.onsuccess = () => resolve(req.result as string[]);
+        req.onerror = () => reject(req.error);
     });
+
+    // Phase 2: Fetch and convert each image sequentially (or with small parallelism if needed).
+    // Serial execution ensures we don't run out of memory or crash the browser tab with too many active FileReaders.
+    for (const key of keys) {
+        try {
+            // Re-open a transaction for each fetch or rely on helper
+            const blob = await getImage(key);
+            if (blob) {
+                const base64 = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => reject(new Error(`FileReader error for key ${key}`));
+                    reader.readAsDataURL(blob);
+                });
+                results[key] = base64;
+            }
+        } catch (e) {
+            console.warn(`Failed to export image ${key}:`, e);
+            // Skip erroneous images instead of failing the whole export
+        }
+    }
+
+    return results;
 }
 
 export async function clearImages(): Promise<void> {

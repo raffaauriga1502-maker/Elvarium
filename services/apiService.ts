@@ -439,7 +439,13 @@ function base64ToUint8Array(base64: string): Uint8Array {
 export type ShareSource = 'dpaste' | 'fileio' | 'dpaste-chunked';
 
 function chunkString(str: string, length: number): string[] {
-  return str.match(new RegExp('.{1,' + length + '}', 'g')) || [];
+    const size = str.length;
+    const numChunks = Math.ceil(size / length);
+    const chunks = new Array(numChunks);
+    for (let i = 0, o = 0; i < numChunks; ++i, o += length) {
+        chunks[i] = str.substring(o, o + length);
+    }
+    return chunks;
 }
 
 // Helper: Fetch with timeout to prevent infinite hangs
@@ -590,6 +596,7 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     }
     
     onProgress?.("Reading images...");
+    // This now calls the robust serial implementation in idbService
     const indexedDBData = await idbService.getAllImagesAsDataUrls();
     
     const dataToShare = {
