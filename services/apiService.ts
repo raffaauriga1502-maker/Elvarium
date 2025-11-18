@@ -68,8 +68,9 @@ const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number 
             const img = new Image();
             img.src = event.target.result as string;
             img.onload = () => {
-                // Optimization: If the image is already within bounds, do not use canvas to resize/recompress.
-                if (img.width <= maxWidth && img.height <= maxHeight) {
+                // Optimization: If the image is already within bounds AND file size is reasonable (<500KB), use original.
+                // If file is huge (e.g. 5MB png), we force re-compression even if dimensions are okay.
+                if (img.width <= maxWidth && img.height <= maxHeight && file.size < 500 * 1024) {
                     resolve(file);
                     return;
                 }
@@ -98,7 +99,8 @@ const imageFileToBlob = (file: File, maxWidth: number = 2048, maxHeight: number 
                 ctx.drawImage(img, 0, 0, width, height);
                 
                 const transparentMimeTypes = ['image/png', 'image/gif', 'image/webp'];
-                const outputMimeType = transparentMimeTypes.includes(file.type) ? 'image/png' : 'image/jpeg';
+                // Force JPEG for large images if not explicitly needing transparency, or if file was huge
+                const outputMimeType = (transparentMimeTypes.includes(file.type) && file.size < 2 * 1024 * 1024) ? 'image/png' : 'image/jpeg';
                 
                 if (outputMimeType === 'image/png') {
                      canvas.toBlob((blob) => {
@@ -635,8 +637,8 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
     const url = new URL(baseUrl);
     url.search = '';
 
-    // Decreased limit to be safer with dpaste limits (approx 500KB safe zone)
-    const SINGLE_PASTE_LIMIT = 500 * 1024; 
+    // Reduced limit to be much safer with dpaste limits and base64 expansion (approx 250KB)
+    const SINGLE_PASTE_LIMIT = 250 * 1024; 
     const MAX_CHUNKS = 200; 
 
     if (sizeInBytes < SINGLE_PASTE_LIMIT) {
@@ -654,9 +656,10 @@ export const generateShareableLink = async (onProgress?: (message: string) => vo
         try {
             const chunks = chunkString(payloadString, SINGLE_PASTE_LIMIT); 
             let uploadedCount = 0;
-            // Reduced concurrency from 5 to 3 to avoid rate limits
-            const ids = await processInBatches(chunks, 3, async (chunk) => {
-                await new Promise(r => setTimeout(r, 100));
+            // Reduced concurrency to 1 (Serial Upload) to guarantee order and avoid rate limits for large payloads
+            const ids = await processInBatches(chunks, 1, async (chunk) => {
+                // Increased delay to 500ms to be very gentle with dpaste
+                await new Promise(r => setTimeout(r, 500));
                 const res = await uploadToDpasteWithRetry(chunk);
                 uploadedCount++;
                 onProgress?.(`Uploading part ${uploadedCount}/${chunks.length}...`);

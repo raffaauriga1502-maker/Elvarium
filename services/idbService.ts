@@ -131,9 +131,13 @@ export async function getAllImagesAsDataUrls(): Promise<Record<string, string>> 
         req.onerror = () => reject(req.error);
     });
 
-    // Phase 2: Fetch and convert each image sequentially (or with small parallelism if needed).
+    // Phase 2: Fetch and convert each image sequentially.
     // Serial execution ensures we don't run out of memory or crash the browser tab with too many active FileReaders.
+    let count = 0;
     for (const key of keys) {
+        // Yield to main thread every few images to prevent "Page Unresponsive" browser warnings on large sets
+        if (count++ % 5 === 0) await new Promise(r => setTimeout(r, 0));
+
         try {
             // Re-open a transaction for each fetch or rely on helper
             const blob = await getImage(key);
