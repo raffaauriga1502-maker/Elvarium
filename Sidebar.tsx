@@ -316,8 +316,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isSidebarO
                         onChange={(e) => setUseSafeMode(e.target.checked)}
                         className="w-4 h-4 rounded border-slate-600 text-accent focus:ring-accent bg-primary"
                     />
-                    <span className="text-xs text-text-secondary group-hover:text-text-primary transition-colors select-none">
-                        Safe Mode (No Compression)
+                    <span className="text-xs text-text-secondary group-hover:text-amber-400 transition-colors select-none">
+                        Safe Mode (Very Slow Upload)
                     </span>
                 </label>
                 <button onClick={handleExportFile} className="w-full text-left text-sm p-2 rounded-md text-text-primary hover:bg-secondary hover:text-white transition-colors" aria-label={t('sidebar.aria.downloadData')}>{t('sidebar.downloadFile')}</button>

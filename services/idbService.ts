@@ -115,8 +115,8 @@ export async function checkImageExists(key: string): Promise<boolean> {
 
 // Helper to optimize images for export
 async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
-    // If blob is small (< 250KB), don't compress, just return as base64
-    if (blob.size < 250 * 1024) {
+    // If blob is small (< 200KB), don't compress, just return as base64
+    if (blob.size < 200 * 1024) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
@@ -133,7 +133,8 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
         img.onload = () => {
             URL.revokeObjectURL(url);
             const canvas = document.createElement('canvas');
-            const MAX_SIZE = 1280; 
+            // Aggressive Downscale: 1024px is plenty for mobile viewing of shared worlds
+            const MAX_SIZE = 1024; 
             let width = img.width;
             let height = img.height;
 
@@ -164,8 +165,8 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
             
             ctx.drawImage(img, 0, 0, width, height);
             
-            // Aggressive compression for sharing: JPEG at 60% quality
-            resolve(canvas.toDataURL('image/jpeg', 0.6));
+            // Aggressive compression for sharing: JPEG at 50% quality
+            resolve(canvas.toDataURL('image/jpeg', 0.5));
         };
         img.onerror = (e) => {
              URL.revokeObjectURL(url);
@@ -174,7 +175,10 @@ async function optimizeBlobToDataUrl(blob: Blob): Promise<string> {
     });
 }
 
-export async function getAllImagesAsDataUrls(optimize: boolean = false): Promise<Record<string, string>> {
+export async function getAllImagesAsDataUrls(
+    optimize: boolean = false, 
+    onProgress?: (current: number, total: number) => void
+): Promise<Record<string, string>> {
     const dbInstance = await getDB();
     const results: Record<string, string> = {};
 
@@ -189,9 +193,13 @@ export async function getAllImagesAsDataUrls(optimize: boolean = false): Promise
     });
 
     // Phase 2: Batch Parallel Execution
-    const BATCH_SIZE = 5;
+    const BATCH_SIZE = optimize ? 3 : 5; // Smaller batch for optimization to save CPU/UI responsiveness
+    let completed = 0;
+    const total = keys.length;
+
+    if (onProgress) onProgress(0, total);
     
-    for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+    for (let i = 0; i < total; i += BATCH_SIZE) {
         const batchKeys = keys.slice(i, i + BATCH_SIZE);
         
         await Promise.all(batchKeys.map(async (key) => {
@@ -216,8 +224,11 @@ export async function getAllImagesAsDataUrls(optimize: boolean = false): Promise
             }
         }));
         
-        // Yield to main thread
-        await new Promise(r => setTimeout(r, 10));
+        completed += batchKeys.length;
+        if (onProgress) onProgress(Math.min(completed, total), total);
+
+        // Yield to main thread to keep UI responsive
+        await new Promise(r => setTimeout(r, 20));
     }
 
     return results;

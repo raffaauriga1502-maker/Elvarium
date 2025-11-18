@@ -202,10 +202,14 @@ export interface BackupData {
 }
 
 // DYNAMIC EXPORT: Scans all keys to ensure nothing is missed
-export const exportAllData = async (optimizeImagesForShare: boolean = false): Promise<BackupData> => {
+export const exportAllData = async (
+    optimizeImagesForShare: boolean = false,
+    onProgress?: (message: string) => void
+): Promise<BackupData> => {
     const localStorageData: Record<string, any> = {};
     
     // 1. Dynamic Scan of LocalStorage
+    if (onProgress) onProgress("Scanning settings...");
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         // Only grab keys that belong to this app
@@ -223,7 +227,10 @@ export const exportAllData = async (optimizeImagesForShare: boolean = false): Pr
 
     // 2. Get Images (with optional optimization)
     // This is where we fix the "Upload too slow" issue by compressing images specifically for sharing
-    const images = await idbService.getAllImagesAsDataUrls(optimizeImagesForShare);
+    if (onProgress) onProgress("Preparing images...");
+    const images = await idbService.getAllImagesAsDataUrls(optimizeImagesForShare, (current, total) => {
+        if (onProgress) onProgress(`Processing images: ${current}/${total}`);
+    });
 
     return {
         localStorage: localStorageData,
@@ -280,8 +287,9 @@ export const generateShareableLink = async (
     // Use optimization unless safeMode (user requested "No Compression") is true
     // safeMode = true => Optimize = false
     // safeMode = false => Optimize = true (Default behavior to fix speed issues)
-    const data = await exportAllData(!safeMode);
+    const data = await exportAllData(!safeMode, onStatusUpdate);
     
+    if (onStatusUpdate) onStatusUpdate("Packing data...");
     const jsonString = JSON.stringify(data);
     const blob = new Blob([jsonString], { type: 'application/json' });
     
@@ -294,18 +302,11 @@ export const generateShareableLink = async (
     }
 
     // We use file.io for robust large file handling. 
-    // dpaste has strict limits (often < 1MB or 10MB depending on server config), 
-    // making it unsuitable for worlds with images.
     try {
         const formData = new FormData();
         formData.append('file', blob, 'elvarium_world.json');
         
-        // 14 days expiry (14d) - file.io deletes after 1 download by default, 
-        // but let's try to set a duration if the API supports it, 
-        // though standard file.io free tier is "burn after read".
-        // Alternative: If we want persistent, we need a different host, 
-        // but file.io is the most standard "no-auth" file host.
-        
+        // 1 week expiry
         const response = await fetch('https://file.io/?expires=1w', {
             method: 'POST',
             body: formData
